@@ -1837,14 +1837,20 @@ public class cgeocaches extends AbstractListActivity {
 
 		@Override
 		public void run() {
-			Map<String, String> params = new HashMap<String, String>();
-			params.put("latitude", String.format((Locale) null, "%.6f", coords.getLatitude()));
-			params.put("longitude", String.format((Locale) null, "%.6f", coords.getLongitude()));
-			params.put("cachetype", cachetype);
+			try {
+				Map<String, String> params = new HashMap<String, String>();
+				params.put("latitude", String.format((Locale) null, "%.6f", coords.getLatitude()));
+				params.put("longitude", String.format((Locale) null, "%.6f", coords.getLongitude()));
+				params.put("cachetype", cachetype);
 
-			searchId = base.searchByCoords(this, params, 0, settings.showCaptcha);
+				searchId = base.searchByCoords(this, params, 0, settings.showCaptcha);
 
-			handler.sendMessage(new Message());
+				handler.sendMessage(new Message());
+			} catch (Exception e) {
+				// Hardened If something goes wrong at least c:geo doesn't crash
+				handler.sendMessage(Message.obtain());
+				
+			}
 		}
 	}
 

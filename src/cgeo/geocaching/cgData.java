@@ -1163,6 +1163,12 @@ public class cgData {
 
 		return cacheid;
 	}
+	
+	/**
+	 * Saves the cache. 
+	 * @param cache the cache to be stored
+	 * @return true if stored successfull
+	 */
 
 	public boolean saveCache(cgCache cache) {
 		//LeeB - writing to the DB is slow
@@ -1212,6 +1218,7 @@ public class cgData {
 			values.put("reliable_latlon", 1);
 		} else if (!rel) { // new cache neither stored cache is not reliable, just update
 			// FIXME: if the user is not logged in, coords may be null
+			// FIXME: Do we want to store this?
 			values.put("latitude", cache.coords.getLatitude());
 			values.put("longitude", cache.coords.getLongitude());
 			values.put("reliable_latlon", 0);
