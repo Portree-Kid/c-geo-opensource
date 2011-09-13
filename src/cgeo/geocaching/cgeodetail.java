@@ -1306,18 +1306,23 @@ public class cgeodetail extends AbstractActivity {
 
 		@Override
 		public void run() {
-			Map<String, String> params = new HashMap<String, String>();
-			if (StringUtils.isNotBlank(geocode)) {
-				params.put("geocode", geocode);
-			} else if (StringUtils.isNotBlank(guid)) {
-				params.put("guid", guid);
-			} else {
-				return;
-			}
+			try {
+                Map<String, String> params = new HashMap<String, String>();
+                if (StringUtils.isNotBlank(geocode)) {
+                	params.put("geocode", geocode);
+                } else if (StringUtils.isNotBlank(guid)) {
+                	params.put("guid", guid);
+                } else {
+                	return;
+                }
 
-			searchId = base.searchByGeocode(params, 0, false);
+                searchId = base.searchByGeocode(params, 0, false);
 
-			handler.sendMessage(new Message());
+                handler.sendMessage(new Message());
+            } catch (Exception e) {
+                Log.w(cgSettings.tag, e.toString());
+                handler.sendMessage(Message.obtain());
+            }
 		}
 	}
 
