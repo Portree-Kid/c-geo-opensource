@@ -1144,12 +1144,10 @@ public class CGeoMap extends AbstractMap implements OnDragListener, ViewFactory 
                 if (fromDetailIntent || searchIntent != null) {
                     search = searchIntent;
                 } else {
-                    if (!live || !Settings.isLiveMap()) {
-                        search = app.getStoredInViewport(centerLat, centerLon, spanLat, spanLon, Settings.getCacheType());
-                    } else {
-                        search = app.getCachedInViewport(centerLat, centerLon, spanLat, spanLon, Settings.getCacheType());
-                    }
+                    boolean stored = !live || !Settings.isLiveMap();
+                    coordinates = app.getStorage().getCgCoordInViewport(centerLat, centerLon, spanLat, spanLon, stored);
                 }
+
 
                 if (search != null) {
                     downloaded = true;
@@ -1239,17 +1237,6 @@ public class CGeoMap extends AbstractMap implements OnDragListener, ViewFactory 
 
                     return;
                 }
-
-                double lat1 = (centerLat / 1e6) - ((spanLat / 1e6) / 2) - ((spanLat / 1e6) / 4);
-                double lat2 = (centerLat / 1e6) + ((spanLat / 1e6) / 2) + ((spanLat / 1e6) / 4);
-                double lon1 = (centerLon / 1e6) - ((spanLon / 1e6) / 2) - ((spanLon / 1e6) / 4);
-                double lon2 = (centerLon / 1e6) + ((spanLon / 1e6) / 2) + ((spanLon / 1e6) / 4);
-
-                double latMin = Math.min(lat1, lat2);
-                double latMax = Math.max(lat1, lat2);
-                double lonMin = Math.min(lon1, lon2);
-                double lonMax = Math.max(lon1, lon2);
-
 
                 //*** this needs to be in it's own thread
                 // stage 2 - pull and render from geocaching.com

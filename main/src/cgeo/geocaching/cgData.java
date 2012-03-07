@@ -2793,6 +2793,71 @@ public class cgData {
         return geocodes;
     }
 
+    public List<cgCoord> getCgCoordInViewport(final Long centerLat, final Long centerLon, final Long spanLat, final Long spanLon, boolean stored) {
+        if (centerLat == null || centerLon == null || spanLat == null || spanLon == null) {
+            return null;
+        }
+
+        init();
+
+        List<cgCoord> coords = new ArrayList<cgCoord>();
+
+        double lat1 = (centerLat / 1e6) - ((spanLat / 1e6) / 2) - ((spanLat / 1e6) / 4);
+        double lat2 = (centerLat / 1e6) + ((spanLat / 1e6) / 2) + ((spanLat / 1e6) / 4);
+        double lon1 = (centerLon / 1e6) - ((spanLon / 1e6) / 2) - ((spanLon / 1e6) / 4);
+        double lon2 = (centerLon / 1e6) + ((spanLon / 1e6) / 2) + ((spanLon / 1e6) / 4);
+
+        double latMin = Math.min(lat1, lat2);
+        double latMax = Math.max(lat1, lat2);
+        double lonMin = Math.min(lon1, lon2);
+        double lonMax = Math.max(lon1, lon2);
+
+        StringBuilder where = new StringBuilder(" WHERE ");
+        where.append(" latitude >= ");
+        where.append(String.format((Locale) null, "%.6f", latMin));
+        where.append(" and latitude <= ");
+        where.append(String.format((Locale) null, "%.6f", latMax));
+        where.append(" and longitude >= ");
+        where.append(String.format((Locale) null, "%.6f", lonMin));
+        where.append(" and longitude <= ");
+        where.append(String.format((Locale) null, "%.6f", lonMax));
+        // offline caches only
+        if (stored) {
+            where.append(" and reason >= 1");
+        }
+
+        try {
+            Cursor cursor = databaseRO.rawQuery(
+                    "SELECT name, 'cache', type, geocode, latitude, longitude FROM " + dbTableCaches + where + " UNION SELECT name, 'waypoint', type, geocode, latitude, longitude  FROM " + dbTableWaypoints + where,
+                    null);
+
+            if (cursor != null) {
+                if (cursor.getCount() > 0) {
+                    cursor.moveToFirst();
+                    do {
+                        int i = 0;
+                        cgCoord cg = new cgCoord();
+                        cg.setName(cursor.getString(i++));
+                        cg.setType(cursor.getString(i++));
+                        cg.setTypeSpec(cursor.getString(i++));
+                        cg.setGeocode(cursor.getString(i++));
+                        cg.setCoords(new Geopoint(cursor.getDouble(i++), cursor.getDouble(i++)));
+                        coords.add(cg);
+                    } while (cursor.moveToNext());
+                } else {
+                    cursor.close();
+                    return null;
+                }
+
+                cursor.close();
+            }
+        } catch (Exception e) {
+            Log.e(Settings.tag, "cgData.getOfflineInViewport: " + e.toString());
+        }
+
+        return coords;
+    }
+
     public List<String> getOfflineAll(String cachetype) {
         init();
 

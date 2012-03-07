@@ -509,7 +509,7 @@ public class cgeoapplication extends Application {
         return getStorage().getAllStoredCachesCount(detailedOnly, cacheType, list);
     }
 
-    private cgData getStorage() {
+    public cgData getStorage() {
         if (storage == null) {
             storage = new cgData(this);
         }
@@ -642,7 +642,7 @@ public class cgeoapplication extends Application {
      * <li>name of a cache</li>
      * <li>action like twittering</li>
      * </ul>
-     * 
+     *
      * @param action
      */
     public void setAction(String action) {

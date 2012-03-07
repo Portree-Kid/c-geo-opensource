@@ -2201,6 +2201,10 @@ public class cgBase {
         return searchByAny(thread, cacheType, false, reason, showCaptcha, params);
     }
 
+    /**
+     * Downloads caches in the viewport.
+     */
+
     public cgSearch searchByViewport(final String userToken, final Viewport viewport) {
         final cgSearch search = new cgSearch();
 
