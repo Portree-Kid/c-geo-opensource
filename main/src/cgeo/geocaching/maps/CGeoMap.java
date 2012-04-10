@@ -173,7 +173,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
     /** List of caches in the viewport */
     private final LeastRecentlyUsedSet<cgCache> caches = new LeastRecentlyUsedSet<cgCache>(MAX_CACHES);
     /** List of waypoints in the viewport */
-    private final BoundedList<cgWaypoint> waypoints = new BoundedList<cgWaypoint>(MAX_CACHES);
+    private final LeastRecentlyUsedSet<cgWaypoint> waypoints = new LeastRecentlyUsedSet<cgWaypoint>(MAX_CACHES);
     // storing for offline
     private ProgressDialog waitDialog = null;
     private int detailTotal = 0;
