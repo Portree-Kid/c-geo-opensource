@@ -3,10 +3,13 @@ package cgeo.geocaching.export;
 import cgeo.geocaching.R;
 import cgeo.geocaching.Settings;
 import cgeo.geocaching.cgCache;
+import cgeo.geocaching.cgLog;
 import cgeo.geocaching.cgeoapplication;
 import cgeo.geocaching.activity.ActivityMixin;
 import cgeo.geocaching.activity.Progress;
+import cgeo.geocaching.enumerations.CacheAttribute;
 import cgeo.geocaching.enumerations.LoadFlags;
+import cgeo.geocaching.utils.BaseUtils;
 import cgeo.geocaching.utils.Log;
 
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -45,6 +48,14 @@ public class GpxExport extends AbstractExport {
         private final Progress progress = new Progress();
         private File exportFile;
 
+        /**
+         * Instantiates and configures the task for exporting field notes.
+         *
+         * @param caches
+         *            The {@link List} of {@link cgCache} to be exported
+         * @param activity
+         *            optional: Show a progress bar and toasts
+         */
         public ExportTask(final List<cgCache> caches, final Activity activity) {
             this.caches = caches;
             this.activity = activity;
@@ -52,12 +63,20 @@ public class GpxExport extends AbstractExport {
 
         @Override
         protected void onPreExecute() {
-            progress.show(activity, null, getString(R.string.export) + ": " + getName(), ProgressDialog.STYLE_HORIZONTAL, null);
-            progress.setMaxProgressAndReset(caches.size());
+            if (null != activity) {
+                progress.show(activity, null, getString(R.string.export) + ": " + getName(), ProgressDialog.STYLE_HORIZONTAL, null);
+                progress.setMaxProgressAndReset(caches.size());
+            }
         }
 
         @Override
         protected Boolean doInBackground(Void... params) {
+            // quick check for being able to write the GPX file
+            if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+                return false;
+            }
+
+            // FIXME: complete export is created in memory. That should be some file stream instead.
             final StringBuilder gpx = new StringBuilder();
 
             gpx.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -120,7 +139,29 @@ public class GpxExport extends AbstractExport {
                     gpx.append(StringEscapeUtils.escapeXml(cache.getSize().toString())); //TODO: Correct (english) string
                     gpx.append("</groundspeak:container>");
 
-                    //TODO: Attributes
+                    if (cache.hasAttributes()) {
+                        //TODO: Attribute conversion required: English verbose name, gpx-id
+                        gpx.append("<groundspeak:attributes>");
+
+                        for (String attribute : cache.getAttributes()) {
+                            final CacheAttribute attr = CacheAttribute.getByGcRawName(CacheAttribute.trimAttributeName(attribute));
+                            final boolean enabled = attribute.endsWith(CacheAttribute.INTERNAL_YES);
+
+                            gpx.append("<groundspeak:attribute id=\"");
+                            gpx.append(attr.id);
+                            gpx.append("\" inc=\"");
+                            if (enabled) {
+                                gpx.append('1');
+                            } else {
+                                gpx.append('0');
+                            }
+                            gpx.append("\">");
+                            gpx.append(StringEscapeUtils.escapeXml(attr.getL10n(enabled)));
+                            gpx.append("</groundspeak:attribute>");
+                        }
+
+                        gpx.append("</groundspeak:attributes>");
+                    }
 
                     gpx.append("<groundspeak:difficulty>");
                     gpx.append(Float.toString(cache.getDifficulty()));
@@ -138,11 +179,23 @@ public class GpxExport extends AbstractExport {
                     gpx.append(StringEscapeUtils.escapeXml(cache.getLocation()));
                     gpx.append("</groundspeak:state>");
 
-                    gpx.append("<groundspeak:short_description html=\"True\">");
+                    gpx.append("<groundspeak:short_description html=\"");
+                    if (BaseUtils.containsHtml(cache.getShortDescription())) {
+                        gpx.append("True");
+                    } else {
+                        gpx.append("False");
+                    }
+                    gpx.append("\">");
                     gpx.append(StringEscapeUtils.escapeXml(cache.getShortDescription()));
                     gpx.append("</groundspeak:short_description>");
 
-                    gpx.append("<groundspeak:long_description html=\"True\">");
+                    gpx.append("<groundspeak:long_description html=\"");
+                    if (BaseUtils.containsHtml(cache.getDescription())) {
+                        gpx.append("True");
+                    } else {
+                        gpx.append("False");
+                    }
+                    gpx.append("\">");
                     gpx.append(StringEscapeUtils.escapeXml(cache.getDescription()));
                     gpx.append("</groundspeak:long_description>");
 
@@ -153,7 +206,36 @@ public class GpxExport extends AbstractExport {
                     gpx.append("</groundspeak:cache>");
 
                     //TODO: Waypoints
-                    //TODO: Logs
+
+                    if (cache.getLogs().size() > 0) {
+                        gpx.append("<groundspeak:logs>");
+
+                        for (cgLog log : cache.getLogs()) {
+                            gpx.append("<groundspeak:log id=\"");
+                            gpx.append(log.id);
+                            gpx.append("\">");
+
+                            gpx.append("<groundspeak:date>");
+                            gpx.append(StringEscapeUtils.escapeXml(dateFormatZ.format(new Date(log.date))));
+                            gpx.append("</groundspeak:date>");
+
+                            gpx.append("<groundspeak:type>");
+                            gpx.append(StringEscapeUtils.escapeXml(log.type.type));
+                            gpx.append("</groundspeak:type>");
+
+                            gpx.append("<groundspeak:finder id=\"\">");
+                            gpx.append(StringEscapeUtils.escapeXml(log.author));
+                            gpx.append("</groundspeak:finder>");
+
+                            gpx.append("<groundspeak:text encoded=\"False\">");
+                            gpx.append(StringEscapeUtils.escapeXml(log.log));
+                            gpx.append("</groundspeak:text>");
+
+                            gpx.append("</groundspeak:log>");
+                        }
+
+                        gpx.append("</groundspeak:logs>");
+                    }
 
                     gpx.append("</wpt>");
 
@@ -170,7 +252,7 @@ public class GpxExport extends AbstractExport {
                 exportLocation.mkdirs();
 
                 SimpleDateFormat fileNameDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
-                exportFile = new File(exportLocation + "/" + fileNameDateFormat.format(new Date()) + ".gpx");
+                exportFile = new File(exportLocation.toString() + '/' + fileNameDateFormat.format(new Date()) + ".gpx");
 
                 OutputStream os = null;
                 Writer fw = null;
@@ -200,17 +282,21 @@ public class GpxExport extends AbstractExport {
 
         @Override
         protected void onPostExecute(Boolean result) {
-            progress.dismiss();
-            if (result) {
-                ActivityMixin.showToast(activity, getName() + " " + getString(R.string.export_exportedto) + ": " + exportFile.toString());
-            } else {
-                ActivityMixin.showToast(activity, getString(R.string.export_failed));
+            if (null != activity) {
+                progress.dismiss();
+                if (result) {
+                    ActivityMixin.showToast(activity, getName() + ' ' + getString(R.string.export_exportedto) + ": " + exportFile.toString());
+                } else {
+                    ActivityMixin.showToast(activity, getString(R.string.export_failed));
+                }
             }
         }
 
         @Override
         protected void onProgressUpdate(Integer... status) {
-            progress.setProgress(status[0]);
+            if (null != activity) {
+                progress.setProgress(status[0]);
+            }
         }
     }
 }
