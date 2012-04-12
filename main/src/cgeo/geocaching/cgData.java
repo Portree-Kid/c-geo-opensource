@@ -70,8 +70,8 @@ public class cgData {
     private CacheCache cacheCache = null;
     private String path = null;
     private cgDbHelper dbHelper = null;
-    private SQLiteDatabase databaseRO = null;
-    private SQLiteDatabase databaseRW = null;
+    private SQLiteDatabaseLogging databaseRO = null;
+    private SQLiteDatabaseLogging databaseRW = null;
     private static final int dbVersion = 62;
     private static final int customListIdOffset = 10;
     private static final String dbName = "data";
@@ -263,7 +263,7 @@ public class cgData {
                 if (dbHelper == null) {
                     dbHelper = new cgDbHelper(context);
                 }
-                databaseRW = dbHelper.getWritableDatabase();
+                databaseRW = new SQLiteDatabaseLogging(dbHelper.getWritableDatabase());
 
                 if (databaseRW != null && databaseRW.isOpen()) {
                     Log.i(Settings.tag, "Connection to RW database established.");
@@ -284,7 +284,7 @@ public class cgData {
                 if (dbHelper == null) {
                     dbHelper = new cgDbHelper(context);
                 }
-                databaseRO = dbHelper.getReadableDatabase();
+                databaseRO = new SQLiteDatabaseLogging(dbHelper.getReadableDatabase());
 
                 if (databaseRO.needUpgrade(dbVersion)) {
                     databaseRO = null;
@@ -1388,7 +1388,7 @@ public class cgData {
 
             if (!attributes.isEmpty()) {
 
-                InsertHelper helper = new InsertHelper(databaseRW, dbTableAttributes);
+                InsertHelper helper = new InsertHelper(databaseRW.getSql(), dbTableAttributes);
                 long timeStamp = System.currentTimeMillis();
 
                 for (String attribute : attributes) {
@@ -1626,7 +1626,7 @@ public class cgData {
             }
 
             if (!logs.isEmpty()) {
-                InsertHelper helper = new InsertHelper(databaseRW, dbTableLogs);
+                InsertHelper helper = new InsertHelper(databaseRW.getSql(), dbTableLogs);
                 long timeStamp = System.currentTimeMillis();
                 for (cgLog log : logs) {
                     helper.prepareForInsert();
@@ -2733,7 +2733,7 @@ public class cgData {
 
     /**
      * Loads the geocodes of caches in a viewport from CacheCache and/or Database
-     * 
+     *
      * @param stored
      *            True - query only stored caches, False - query cached ones as well
      * @param centerLat
