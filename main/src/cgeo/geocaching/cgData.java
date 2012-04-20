@@ -2184,11 +2184,14 @@ public class cgData {
         trackable.setGuid(cursor.getString(cursor.getColumnIndex("guid")));
         trackable.setName(cursor.getString(cursor.getColumnIndex("title")));
         trackable.setOwner(cursor.getString(cursor.getColumnIndex("owner")));
-        String releasedPre = cursor.getString(cursor.getColumnIndex("released"));
-        if (releasedPre != null && Long.getLong(releasedPre) != null) {
-            trackable.setReleased(new Date(Long.getLong(releasedPre)));
-        } else {
-            trackable.setReleased(null);
+        String released = cursor.getString(cursor.getColumnIndex("released"));
+        if (released != null) {
+            try {
+                long releaseMilliSeconds = Long.parseLong(released);
+                trackable.setReleased(new Date(releaseMilliSeconds));
+            } catch (NumberFormatException e) {
+                Log.e("createTrackableFromDatabaseContent", e);
+            }
         }
         trackable.setGoal(cursor.getString(cursor.getColumnIndex("goal")));
         trackable.setDetails(cursor.getString(cursor.getColumnIndex("description")));
@@ -2197,14 +2200,14 @@ public class cgData {
     }
 
     /**
-     * Number of caches stored. The number is shown on the starting activitiy of c:geo
+     * Number of caches stored. The number is shown on the starting activity of c:geo
      *
      * @param detailedOnly
      * @param cacheType
      * @param list
      * @return
      */
-    public int getAllStoredCachesCount(final boolean detailedOnly, final CacheType cacheType, final Integer list) {
+    public int getAllStoredCachesCount(final boolean detailedOnly, final CacheType cacheType, final int list) {
         if (cacheType == null) {
             throw new IllegalArgumentException("cacheType must not be null");
         }
@@ -2212,7 +2215,7 @@ public class cgData {
 
         String listSql = null;
         String listSqlW = null;
-        if (list == null) {
+        if (list == 0) {
             listSql = " where reason >= 1";
             listSqlW = " and reason >= 1";
         } else if (list >= 1) {
