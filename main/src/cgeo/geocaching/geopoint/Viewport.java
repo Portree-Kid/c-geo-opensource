@@ -2,6 +2,7 @@ package cgeo.geocaching.geopoint;
 
 import cgeo.geocaching.ICoordinates;
 
+import java.util.Locale;
 import java.util.Set;
 
 
@@ -31,10 +32,6 @@ public class Viewport {
         final double lonHalfSpan = Math.abs(lonSpan) / 2;
         bottomLeft = new Geopoint(centerLat - latHalfSpan, centerLon - lonHalfSpan);
         topRight = new Geopoint(centerLat + latHalfSpan, centerLon + lonHalfSpan);
-    }
-
-    public Viewport(final double lat1, final double lat2, final double lon1, final double lon2) {
-        this(new Geopoint(lat1, lon1), new Geopoint(lat2, lon2));
     }
 
     public double getLatitudeMin() {
@@ -97,62 +94,17 @@ public class Viewport {
     }
 
     /**
-     * Check if coordinates are located in a viewport (defined by its center and span
-     * in each direction).
-     *
-     * @param centerLat
-     *            the viewport center latitude
-     * @param centerLon
-     *            the viewport center longitude
-     * @param spanLat
-     *            the latitude span
-     * @param spanLon
-     *            the longitude span
-     * @param coords
-     *            the coordinates to check
-     * @return true if the coordinates are in the viewport
-     */
-    // FIXME: this static method has nothing to do here and should be used with a viewport, not some int numbers,
-    // when CGeoMap.java gets rewritten
-    public static boolean isCacheInViewPort(int centerLat, int centerLon, int spanLat, int spanLon, final Geopoint coords) {
-        final Viewport viewport = new Viewport(new Geopoint(centerLat / 1e6, centerLon / 1e6), spanLat / 1e6, spanLon / 1e6);
-        return viewport.contains(coords);
-    }
-
-    /**
-     * Check if an area is located in a viewport (defined by its center and span
-     * in each direction).
-     *
-     * expects coordinates in E6 format
-     *
-     * @param centerLat1
-     * @param centerLon1
-     * @param centerLat2
-     * @param centerLon2
-     * @param spanLat1
-     * @param spanLon1
-     * @param spanLat2
-     * @param spanLon2
-     * @return
-     */
-    // FIXME: this static method has nothing to do here and should be used with a viewport, not some int numbers,
-    // when CGeoMap.java gets rewritten
-    public static boolean isInViewPort(int centerLat1, int centerLon1, int centerLat2, int centerLon2, int spanLat1, int spanLon1, int spanLat2, int spanLon2) {
-        final Viewport outer = new Viewport(new Geopoint(centerLat1 / 1e6, centerLon1 / 1e6), spanLat1 / 1e6, spanLon1 / 1e6);
-        final Viewport inner = new Viewport(new Geopoint(centerLat2 / 1e6, centerLon2 / 1e6), spanLat2 / 1e6, spanLon2 / 1e6);
-        return outer.includes(inner);
-    }
-
-    /**
      * Return the "where" part of the string appropriate for a SQL query.
      *
+     * @param dbTable
+     *            the database table to use as prefix, or null if no prefix is required
      * @return the string without the "where" keyword
      */
-    public String sqlWhere() {
-        return "latitude >= " + getLatitudeMin() + " and " +
-                "latitude <= " + getLatitudeMax() + " and " +
-                "longitude >= " + getLongitudeMin() + " and " +
-                "longitude <= " + getLongitudeMax();
+    public String sqlWhere(final String dbTable) {
+        final String prefix = dbTable == null ? "" : (dbTable + ".");
+        return String.format((Locale) null,
+                "%slatitude >= %s and %slatitude <= %s and %slongitude >= %s and %slongitude <= %s",
+                prefix, getLatitudeMin(), prefix, getLatitudeMax(), prefix, getLongitudeMin(), prefix, getLongitudeMax());
     }
 
     /**
@@ -168,7 +120,7 @@ public class Viewport {
 
     /**
      * Return a viewport that contains the current viewport as well as another point.
-     * 
+     *
      * @param coords
      *            the point we want in the viewport
      * @return either the same or an expanded viewport
@@ -198,12 +150,11 @@ public class Viewport {
     static public Viewport containing(final Set<? extends ICoordinates> points) {
         Viewport viewport = null;
         for (final ICoordinates point : points) {
-            final Geopoint coords = point == null ? null : point.getCoords();
-            if (coords != null) {
+            if (point != null) {
                 if (viewport == null) {
-                    viewport = new Viewport(coords, coords);
+                    viewport = new Viewport(point, point);
                 } else {
-                    viewport = viewport.expand(coords);
+                    viewport = viewport.expand(point);
                 }
             }
         }
@@ -223,4 +174,5 @@ public class Viewport {
     public int hashCode() {
         return bottomLeft.hashCode() ^ topRight.hashCode();
     }
+
 }
