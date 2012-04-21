@@ -4,7 +4,6 @@ import cgeo.geocaching.activity.AbstractActivity;
 import cgeo.geocaching.connector.gc.GCConstants;
 import cgeo.geocaching.geopoint.Geopoint;
 import cgeo.geocaching.geopoint.GeopointFormatter;
-import cgeo.geocaching.geopoint.GeopointParser;
 import cgeo.geocaching.utils.BaseUtils;
 import cgeo.geocaching.utils.EditUtils;
 import cgeo.geocaching.utils.Log;
@@ -121,32 +120,25 @@ public class cgeoadvsearch extends AbstractActivity {
      * @return true if a search was performed, else false
      */
     private boolean instantSearch(final String query, final boolean keywordSearch) {
-        try {
-            String result = BaseUtils.getMatch(query, GCConstants.PATTERN_GC_CODE, true, 0, "", false);
-            if (StringUtils.isNotBlank(result)) {
-                final Intent cachesIntent = new Intent(this, CacheDetailActivity.class);
-                cachesIntent.putExtra("geocode", result.toUpperCase());
-                startActivity(cachesIntent);
+        final String geocode = BaseUtils.getMatch(query, GCConstants.PATTERN_GC_CODE, true, 0, "", false);
+        if (StringUtils.isNotBlank(geocode)) {
+            final Intent cachesIntent = new Intent(this, CacheDetailActivity.class);
+            cachesIntent.putExtra("geocode", geocode.toUpperCase());
+            startActivity(cachesIntent);
+            return true;
+        }
 
-                return true;
-            } else {
-                result = BaseUtils.getMatch(query, GCConstants.PATTERN_TB_CODE, true, 0, "", false);
-                if (StringUtils.isNotBlank(result)) {
-                    final Intent trackablesIntent = new Intent(this, cgeotrackable.class);
-                    trackablesIntent.putExtra("geocode", result.toUpperCase());
-                    startActivity(trackablesIntent);
+        final String trackable = BaseUtils.getMatch(query, GCConstants.PATTERN_TB_CODE, true, 0, "", false);
+        if (StringUtils.isNotBlank(trackable)) {
+            final Intent trackablesIntent = new Intent(this, cgeotrackable.class);
+            trackablesIntent.putExtra("geocode", trackable.toUpperCase());
+            startActivity(trackablesIntent);
+            return true;
+        }
 
-                    return true;
-                } else if (keywordSearch) { // keyword fallback, if desired by caller
-                    cgeocaches.startActivityKeyword(this, query.trim());
-                    return true;
-                } else {
-                    return false;
-                }
-
-            }
-        } catch (Exception e) {
-            Log.w("cgeoadvsearch.instantSearch: " + e.toString());
+        if (keywordSearch) { // keyword fallback, if desired by caller
+            cgeocaches.startActivityKeyword(this, query.trim());
+            return true;
         }
 
         return false;
@@ -313,8 +305,8 @@ public class cgeoadvsearch extends AbstractActivity {
             }
         } else {
             try {
-                cgeocaches.startActivityCoordinates(this, GeopointParser.parse(latText, lonText));
-            } catch (GeopointParser.ParseException e) {
+                cgeocaches.startActivityCoordinates(this, new Geopoint(latText, lonText));
+            } catch (Geopoint.ParseException e) {
                 showToast(res.getString(e.resource));
             }
         }

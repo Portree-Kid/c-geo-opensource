@@ -54,6 +54,7 @@ import android.graphics.drawable.LayerDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.SparseArray;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SubMenu;
@@ -66,10 +67,8 @@ import android.widget.TextView;
 import android.widget.ViewSwitcher.ViewFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -163,7 +162,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
     private static final int[][] INSET_USERMODIFIEDCOORDS = { { 21, 28, 0, 0 }, { 19, 25, 0, 0 } }; // bottom right, 12x12 / 26x26
     private static final int[][] INSET_PERSONALNOTE = { { 0, 28, 21, 0 }, { 0, 25, 19, 0 } }; // bottom left, 12x12 / 26x26
 
-    private static Map<Integer, LayerDrawable> overlaysCache = new HashMap<Integer, LayerDrawable>();
+    private static SparseArray<LayerDrawable> overlaysCache = new SparseArray<LayerDrawable>();
     private int cachesCnt = 0;
     /** List of caches in the viewport */
     private final LeastRecentlyUsedSet<cgCache> caches = new LeastRecentlyUsedSet<cgCache>(MAX_CACHES);
@@ -876,17 +875,17 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
      * @return the current map state as an array of int, or null if no map state is available
      */
     private int[] currentMapState() {
-        if (mapView != null) {
-            int[] mapState = new int[4];
-            GeoPointImpl mapCenter = mapView.getMapViewCenter();
-            mapState[0] = mapCenter.getLatitudeE6();
-            mapState[1] = mapCenter.getLongitudeE6();
-            mapState[2] = mapView.getMapZoomLevel();
-            mapState[3] = followMyLocation ? 1 : 0;
-            return mapState;
-        } else {
+        if (mapView == null) {
             return mapStateIntent;
         }
+
+        final GeoPointImpl mapCenter = mapView.getMapViewCenter();
+        return new int[] {
+                mapCenter.getLatitudeE6(),
+                mapCenter.getLongitudeE6(),
+                mapView.getMapZoomLevel(),
+                followMyLocation ? 1 : 0
+        };
     }
 
     private void savePrefs() {
@@ -1414,7 +1413,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
         }
     }
 
-    private abstract class DoRunnable implements Runnable {
+    private static abstract class DoRunnable implements Runnable {
 
         final protected Viewport viewport;
 

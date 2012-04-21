@@ -3,7 +3,7 @@ package cgeo.geocaching.enumerations;
 import cgeo.geocaching.R;
 import cgeo.geocaching.cgeoapplication;
 
-import android.content.res.Resources;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -78,9 +78,9 @@ public enum CacheAttribute {
     FRONTYARD(65, "frontyard", R.drawable.attribute_frontyard, R.string.attribute_frontyard_yes, R.string.attribute_frontyard_no),
     TEAMWORK(66, "teamwork", R.drawable.attribute_teamwork, R.string.attribute_teamwork_yes, R.string.attribute_teamwork_no);
 
-    public static final String INTERNAL_PRE = "attribute_";
-    public static final String INTERNAL_YES = "_yes";
-    public static final String INTERNAL_NO = "_no";
+    private static final String INTERNAL_PRE = "attribute_";
+    private static final String INTERNAL_YES = "_yes";
+    private static final String INTERNAL_NO = "_no";
 
     public final int id;
     public final String gcRawName;
@@ -97,17 +97,7 @@ public enum CacheAttribute {
     }
 
     public String getL10n(final boolean enabled) {
-        final String attributeDescriptor = INTERNAL_PRE + gcRawName + (enabled ? INTERNAL_YES : INTERNAL_NO);
-
-        cgeoapplication instance = cgeoapplication.getInstance();
-        if (instance != null) {
-            Resources res = instance.getResources();
-            int id = res.getIdentifier(attributeDescriptor, "string", instance.getBaseContext().getPackageName());
-
-            return (id > 0) ? res.getString(id) : attributeDescriptor;
-        } else {
-            return attributeDescriptor;
-        }
+        return cgeoapplication.getInstance().getResources().getString(enabled ? stringIdYes : stringIdNo);
     }
 
     private final static Map<String, CacheAttribute> FIND_BY_GCRAWNAME;
@@ -142,5 +132,9 @@ public enum CacheAttribute {
             return "";
         }
         return attributeName.replace(INTERNAL_PRE, "").replace(INTERNAL_YES, "").replace(INTERNAL_NO, "").trim();
+    }
+
+    public static boolean isEnabled(final String attributeName) {
+        return !StringUtils.endsWithIgnoreCase(attributeName, INTERNAL_NO);
     }
 }
