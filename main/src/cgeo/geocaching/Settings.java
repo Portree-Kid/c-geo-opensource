@@ -385,9 +385,7 @@ public final class Settings {
     }
 
     public static int getLastList() {
-        final int listId = sharedPrefs.getInt(KEY_LAST_USED_LIST, StoredList.STANDARD_LIST_ID);
-
-        return listId;
+        return sharedPrefs.getInt(KEY_LAST_USED_LIST, StoredList.STANDARD_LIST_ID);
     }
 
     public static void saveLastList(final int listId) {
@@ -424,15 +422,12 @@ public final class Settings {
     }
 
     public static boolean setMapFile(final String mapFile) {
-        final boolean commitResult = editSharedSettings(new PrefRunnable() {
-
+        return editSharedSettings(new PrefRunnable() {
             @Override
             public void edit(Editor edit) {
                 edit.putString(KEY_MAPFILE, mapFile);
             }
         });
-
-        return commitResult;
     }
 
     public static boolean isValidMapFile(final String mapFileIn) {
@@ -478,7 +473,7 @@ public final class Settings {
     }
 
     public static boolean getLoadDirImg() {
-        return isPremiumMember() ? false : sharedPrefs.getBoolean(KEY_LOAD_DIRECTION_IMG, true);
+        return !isPremiumMember() && sharedPrefs.getBoolean(KEY_LOAD_DIRECTION_IMG, true);
     }
 
     public static void setGcCustomDate(final String format) {
@@ -554,7 +549,7 @@ public final class Settings {
     }
 
     public static boolean isShowCaptcha() {
-        return isPremiumMember() ? false : sharedPrefs.getBoolean(KEY_SHOW_CAPTCHA, false);
+        return !isPremiumMember() && sharedPrefs.getBoolean(KEY_SHOW_CAPTCHA, false);
     }
 
     public static void setShowCaptcha(final boolean showCaptcha) {

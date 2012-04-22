@@ -64,7 +64,6 @@ import android.view.SubMenu;
 import android.view.View;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ListView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -159,7 +158,7 @@ public class cgeocaches extends AbstractListActivity {
         public void handleMessage(Message msg) {
             try {
                 if (search != null) {
-                    setTitle(title + " [" + search.getCount() + "]");
+                    setTitle(title + " [" + search.getCount() + ']');
                     cacheList.clear();
 
                     final Set<cgCache> caches = search.getCachesFromSearchResult(LoadFlags.LOAD_CACHE_OR_DB);
@@ -203,7 +202,7 @@ public class cgeocaches extends AbstractListActivity {
                     AlertDialog alert = dialog.create();
                     alert.show();
                 } else if (app != null && search != null && search.getError() != null) {
-                    showToast(res.getString(R.string.err_download_fail) + " " + search.getError().getErrorString(res) + ".");
+                    showToast(res.getString(R.string.err_download_fail) + ' ' + search.getError().getErrorString(res) + '.');
 
                     hideLoading();
                     showProgress(false);
@@ -734,7 +733,7 @@ public class cgeocaches extends AbstractListActivity {
         Collections.sort(sortedLabels);
         for (String label : sortedLabels) {
             Integer id = comparators.get(label);
-            subMenuSort.add(1, id.intValue(), 0, label).setCheckable(true).setChecked(id.intValue() == MENU_SORT_DISTANCE);
+            subMenuSort.add(1, id, 0, label).setCheckable(true).setChecked(id == MENU_SORT_DISTANCE);
         }
 
         subMenuSort.setGroupCheckable(1, true, true);
@@ -747,14 +746,14 @@ public class cgeocaches extends AbstractListActivity {
             subMenu.add(0, MENU_DROP_CACHES_AND_LIST, 0, res.getString(R.string.caches_drop_all_and_list));
             subMenu.add(0, MENU_REFRESH_STORED, 0, res.getString(R.string.cache_offline_refresh)); // download details for all caches
             subMenu.add(0, MENU_MOVE_TO_LIST, 0, res.getString(R.string.cache_menu_move_list));
-            subMenu.add(0, MENU_EXPORT, 0, res.getString(R.string.export)); // export caches
-            if (Settings.getWebDeviceCode() == null) {
-                menu.add(0, MENU_IMPORT_GPX, 0, res.getString(R.string.gpx_import_title)).setIcon(android.R.drawable.ic_menu_upload); // import gpx file
-            } else {
-                SubMenu subMenuImport = menu.addSubMenu(0, SUBMENU_IMPORT, 0, res.getString(R.string.import_title)).setIcon(android.R.drawable.ic_menu_upload); // import
-                subMenuImport.add(1, MENU_IMPORT_GPX, 0, res.getString(R.string.gpx_import_title)).setCheckable(false).setChecked(false);
-                subMenuImport.add(1, MENU_IMPORT_WEB, 0, res.getString(R.string.web_import_title)).setCheckable(false).setChecked(false);
+
+            //TODO: add submenu/AlertDialog and use R.string.gpx_import_title
+            subMenu.add(0, MENU_IMPORT_GPX, 0, res.getString(R.string.gpx_import_title));
+            if (Settings.getWebDeviceCode() != null) {
+                subMenu.add(0, MENU_IMPORT_WEB, 0, res.getString(R.string.web_import_title));
             }
+
+            subMenu.add(0, MENU_EXPORT, 0, res.getString(R.string.export)); // export caches
         } else {
             if (type == CacheListType.HISTORY) {
                 SubMenu subMenu = menu.addSubMenu(0, SUBMENU_MANAGE_HISTORY, 0, res.getString(R.string.caches_manage)).setIcon(android.R.drawable.ic_menu_save);
@@ -1088,7 +1087,8 @@ public class cgeocaches extends AbstractListActivity {
             NavigationAppFactory.showNavigationMenu(geo, this, cache, null, null);
             return true;
         } else if (id == MENU_LOG_VISIT) {
-            return getCacheFromAdapter(adapterInfo).logVisit(this);
+            getCacheFromAdapter(adapterInfo).logVisit(this);
+            return true;
         } else if (id == MENU_CACHE_DETAILS) {
             final Intent cachesIntent = new Intent(this, CacheDetailActivity.class);
             final cgCache cache = getCacheFromAdapter(adapterInfo);
@@ -1557,7 +1557,6 @@ public class cgeocaches extends AbstractListActivity {
                 showToast(res.getString(R.string.warn_no_coordinates));
 
                 finish();
-                return;
             }
         }
 
@@ -1584,7 +1583,6 @@ public class cgeocaches extends AbstractListActivity {
                 showToast(res.getString(R.string.warn_no_keyword));
 
                 finish();
-                return;
             }
         }
 
@@ -1610,7 +1608,6 @@ public class cgeocaches extends AbstractListActivity {
                 showToast(res.getString(R.string.warn_no_username));
 
                 finish();
-                return;
             }
         }
 
@@ -1636,7 +1633,6 @@ public class cgeocaches extends AbstractListActivity {
                 showToast(res.getString(R.string.warn_no_username));
 
                 finish();
-                return;
             }
         }
 
@@ -1774,16 +1770,13 @@ public class cgeocaches extends AbstractListActivity {
                 if (responseFromWeb != null && responseFromWeb.getStatusLine().getStatusCode() == 200) {
                     final String response = Network.getResponseData(responseFromWeb);
                     if (response.length() > 2) {
-
-                        String GCcode = response;
-
                         delay = 1;
-                        handler.sendMessage(handler.obtainMessage(1, GCcode));
+                        handler.sendMessage(handler.obtainMessage(1, response));
                         yield();
 
-                        cgCache.storeCache(cgeocaches.this, null, GCcode, listIdLFW, false, null);
+                        cgCache.storeCache(cgeocaches.this, null, response, listIdLFW, false, null);
 
-                        handler.sendMessage(handler.obtainMessage(2, GCcode));
+                        handler.sendMessage(handler.obtainMessage(2, response));
                         yield();
                     } else if ("RG".equals(response)) {
                         //Server returned RG (registration) and this device no longer registered.
@@ -1937,7 +1930,7 @@ public class cgeocaches extends AbstractListActivity {
 
     private void hideLoading() {
         final ListView list = getListView();
-        final RelativeLayout loading = (RelativeLayout) findViewById(R.id.loading);
+        final View loading = findViewById(R.id.loading);
 
         if (list.getVisibility() == View.GONE) {
             list.setVisibility(View.VISIBLE);
@@ -1957,7 +1950,7 @@ public class cgeocaches extends AbstractListActivity {
 
             @Override
             public void run(final Integer selectedListId) {
-                switchListById(selectedListId.intValue());
+                switchListById(selectedListId);
             }
         });
     }

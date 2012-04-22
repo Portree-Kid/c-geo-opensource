@@ -17,7 +17,6 @@ public class cgTrackable implements ILogable {
     static final public int SPOTTED_UNKNOWN = 3;
     static final public int SPOTTED_OWNER = 4;
 
-    private String error = "";
     private String guid = "";
     private String geocode = "";
     private String iconUrl = "";
@@ -49,10 +48,6 @@ public class cgTrackable implements ILogable {
             }
         }
         return "http://coord.info/" + geocode.toUpperCase();
-    }
-
-    public String getError() {
-        return error;
     }
 
     public String getGuid() {
@@ -210,10 +205,7 @@ public class cgTrackable implements ILogable {
     }
 
     public boolean isLoggable() {
-        if (StringUtils.startsWithIgnoreCase(geocode, "GK")) {
-            return false;
-        }
-        return true;
+        return !StringUtils.startsWithIgnoreCase(geocode, "GK");
     }
 
     public String getTrackingcode() {

@@ -298,7 +298,7 @@ public class cgCache implements ICache, IWaypoint {
     /**
      * Compare two caches quickly. For map and list fields only the references are compared !
      *
-     * @param other
+     * @param other the other cache to compare this one to
      * @return true if both caches have the same content
      */
     private boolean isEqualTo(final cgCache other) {
@@ -369,28 +369,18 @@ public class cgCache implements ICache, IWaypoint {
         cal.set(Calendar.MINUTE, 0);
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
-        if (hidden.compareTo(cal.getTime()) < 0) {
-            return false;
-        }
-        return true;
+        return hidden.compareTo(cal.getTime()) >= 0;
     }
 
     /**
-     * checks if a page contains the guid of a cache
+     * Checks if a page contains the guid of a cache
      *
-     * @param cache
-     *            the cache to look for
      * @param page
-     *            the page to search in
-     *
-     * @return true: page contains guid of cache, false: otherwise
+     *            the page to search in, may be null
+     * @return true if the page contains the guid of the cache, false otherwise
      */
     public boolean isGuidContainedInPage(final String page) {
-        if (StringUtils.isBlank(page)) {
-            return false;
-        }
-        // check if the guid of the cache is anywhere in the page
-        if (StringUtils.isBlank(guid)) {
+        if (StringUtils.isBlank(page) || StringUtils.isBlank(guid)) {
             return false;
         }
         final Boolean found = Pattern.compile(guid, Pattern.CASE_INSENSITIVE).matcher(page).find();
@@ -402,10 +392,10 @@ public class cgCache implements ICache, IWaypoint {
         return cacheType.isEvent();
     }
 
-    public boolean logVisit(IAbstractActivity fromActivity) {
+    public void logVisit(final IAbstractActivity fromActivity) {
         if (StringUtils.isBlank(cacheId)) {
             fromActivity.showToast(((Activity) fromActivity).getResources().getString(R.string.err_cannot_log_visit));
-            return true;
+            return;
         }
         Intent logVisitIntent = new Intent((Activity) fromActivity, VisitCacheActivity.class);
         logVisitIntent.putExtra(VisitCacheActivity.EXTRAS_ID, cacheId);
@@ -413,18 +403,12 @@ public class cgCache implements ICache, IWaypoint {
         logVisitIntent.putExtra(VisitCacheActivity.EXTRAS_FOUND, found);
 
         ((Activity) fromActivity).startActivity(logVisitIntent);
-
-        return true;
     }
 
-    public boolean logOffline(final IAbstractActivity fromActivity, final LogType logType) {
-        String log = "";
-        if (StringUtils.isNotBlank(Settings.getSignature())
-                && Settings.isAutoInsertSignature()) {
-            log = LogTemplateProvider.applyTemplates(Settings.getSignature(), true);
-        }
-        logOffline(fromActivity, log, Calendar.getInstance(), logType);
-        return true;
+    public void logOffline(final IAbstractActivity fromActivity, final LogType logType) {
+        final boolean mustIncludeSignature = StringUtils.isNotBlank(Settings.getSignature()) && Settings.isAutoInsertSignature();
+        final String initial = mustIncludeSignature ? LogTemplateProvider.applyTemplates(Settings.getSignature(), true) : "";
+        logOffline(fromActivity, initial, Calendar.getInstance(), logType);
     }
 
     void logOffline(final IAbstractActivity fromActivity, final String log, Calendar date, final LogType logType) {
@@ -924,11 +908,7 @@ public class cgCache implements ICache, IWaypoint {
             }
         }
 
-        if (saveToDatabase) {
-            return cgeoapplication.getInstance().saveWaypoints(geocode, waypoints, false);
-        }
-
-        return false;
+        return saveToDatabase && cgeoapplication.getInstance().saveWaypoints(geocode, waypoints, false);
     }
 
     public List<LogEntry> getLogs() {
@@ -1119,8 +1099,8 @@ public class cgCache implements ICache, IWaypoint {
      * @param storageLocation
      *            the storageLocation to set
      */
-    public void addStorageLocation(StorageLocation sl) {
-        this.storageLocation.add(sl);
+    public void addStorageLocation(final StorageLocation storageLocation) {
+        this.storageLocation.add(storageLocation);
     }
 
     /**
@@ -1153,11 +1133,7 @@ public class cgCache implements ICache, IWaypoint {
             resetFinalDefined();
         }
 
-        if (saveToDatabase) {
-            return cgeoapplication.getInstance().saveOwnWaypoint(waypoint.getId(), geocode, waypoint);
-        }
-
-        return false;
+        return saveToDatabase && cgeoapplication.getInstance().saveOwnWaypoint(waypoint.getId(), geocode, waypoint);
     }
 
     public boolean hasWaypoints() {
@@ -1195,28 +1171,21 @@ public class cgCache implements ICache, IWaypoint {
     }
 
     /**
-     * @param index
-     * @return <code>true</code>, if the waypoint was duplicated
+     * Duplicate a waypoint.
+     *
+     * @param index the waypoint to duplicate
+     * @return <code>true</code> if the waypoint was duplicated, <code>false</code> otherwise (invalid index)
      */
-    public boolean duplicateWaypoint(int index) {
-        if (!isValidWaypointIndex(index)) {
+    public boolean duplicateWaypoint(final int index) {
+        final cgWaypoint original = getWaypoint(index);
+        if (original == null) {
             return false;
         }
-        final cgWaypoint copy = new cgWaypoint(waypoints.get(index));
+        final cgWaypoint copy = new cgWaypoint(original);
         copy.setUserDefined();
         copy.setName(cgeoapplication.getInstance().getString(R.string.waypoint_copy_of) + " " + copy.getName());
         waypoints.add(index + 1, copy);
         return cgeoapplication.getInstance().saveOwnWaypoint(-1, geocode, copy);
-    }
-
-    private boolean isValidWaypointIndex(int index) {
-        if (!hasWaypoints()) {
-            return false;
-        }
-        if (index < 0 || index >= waypoints.size()) {
-            return false;
-        }
-        return true;
     }
 
     /**
@@ -1226,11 +1195,11 @@ public class cgCache implements ICache, IWaypoint {
      *            of the waypoint in cache's waypoint list
      * @return <code>true</code>, if the waypoint was deleted
      */
-    public boolean deleteWaypoint(int index) {
-        if (!isValidWaypointIndex(index)) {
+    public boolean deleteWaypoint(final int index) {
+        final cgWaypoint waypoint = getWaypoint(index);
+        if (waypoint == null) {
             return false;
         }
-        final cgWaypoint waypoint = waypoints.get(index);
         if (waypoint.isUserDefined()) {
             waypoints.remove(index);
             cgeoapplication.getInstance().deleteWaypoint(waypoint.getId());
@@ -1251,17 +1220,13 @@ public class cgCache implements ICache, IWaypoint {
      *            to be removed from cache
      * @return <code>true</code>, if the waypoint was deleted
      */
-    public boolean deleteWaypoint(cgWaypoint waypoint) {
+    public boolean deleteWaypoint(final cgWaypoint waypoint) {
         if (waypoint.getId() <= 0) {
             return false;
         }
 
         final int index = getWaypointIndex(waypoint);
-        if (index >= 0) {
-            return deleteWaypoint(index);
-        }
-
-        return false;
+        return index >= 0 && deleteWaypoint(index);
     }
 
     /**
@@ -1269,38 +1234,36 @@ public class cgCache implements ICache, IWaypoint {
      *
      * @param waypoint
      *            to find index for
-     * @return index in <code>waypoints</code> if found, else -1
+     * @return index in <code>waypoints</code> if found, -1 otherwise
      */
-    private int getWaypointIndex(cgWaypoint waypoint) {
-        int index = 0;
-
-        for (cgWaypoint wp : waypoints) {
-            if (wp.getId() == waypoint.getId()) {
+    private int getWaypointIndex(final cgWaypoint waypoint) {
+        final int id = waypoint.getId();
+        for (int index = 0; index < waypoints.size(); index++) {
+            if (waypoints.get(index).getId() == id) {
                 return index;
             }
-            index++;
         }
-
         return -1;
     }
 
     /**
-     * @param index
-     * @return waypoint or <code>null</code>
+     * Retrieve a given waypoint.
+     *
+     * @param index the index of the waypoint
+     * @return waypoint or <code>null</code> if index is out of range
      */
-    public cgWaypoint getWaypoint(int index) {
-        if (!isValidWaypointIndex(index)) {
-            return null;
-        }
-        return waypoints.get(index);
+    public cgWaypoint getWaypoint(final int index) {
+        return waypoints != null && index >= 0 && index < waypoints.size() ? waypoints.get(index) : null;
     }
 
     /**
-     * @param index
+     * Lookup a waypoint by its id.
+     *
+     * @param id the id of the waypoint to look for
      * @return waypoint or <code>null</code>
      */
-    public cgWaypoint getWaypointById(int id) {
-        for (cgWaypoint waypoint : waypoints) {
+    public cgWaypoint getWaypointById(final int id) {
+        for (final cgWaypoint waypoint : waypoints) {
             if (waypoint.getId() == id) {
                 return waypoint;
             }
@@ -1390,7 +1353,7 @@ public class cgCache implements ICache, IWaypoint {
             return false;
         }
         // just compare the geocode even if that is not what "equals" normally does
-        return StringUtils.isNotBlank(geocode) ? geocode.equals(((cgCache) obj).geocode) : false;
+        return StringUtils.isNotBlank(geocode) && geocode.equals(((cgCache) obj).geocode);
     }
 
     public void store(Activity activity, CancellableHandler handler) {

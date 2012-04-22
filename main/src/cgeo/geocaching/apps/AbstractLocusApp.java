@@ -55,7 +55,7 @@ public abstract class AbstractLocusApp extends AbstractApp {
      * @param activity
      * @author koem
      */
-    protected static boolean showInLocus(final List<? extends Object> objectsToShow, final boolean withCacheWaypoints, final boolean export,
+    protected static boolean showInLocus(final List<?> objectsToShow, final boolean withCacheWaypoints, final boolean export,
             final Activity activity) {
         if (objectsToShow == null || objectsToShow.isEmpty()) {
             return false;
@@ -127,7 +127,7 @@ public abstract class AbstractLocusApp extends AbstractApp {
         pg.name = cache.getName();
         pg.placedBy = cache.getOwner();
         if (cache.getHiddenDate() != null) {
-            pg.hidden = ISO8601DATE.format(Long.valueOf(cache.getHiddenDate().getTime()));
+            pg.hidden = ISO8601DATE.format(cache.getHiddenDate().getTime());
         }
         int locusId = toLocusType(cache.getType());
         if (locusId != NO_LOCUS_ID) {
