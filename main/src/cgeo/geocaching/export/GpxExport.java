@@ -29,7 +29,7 @@ import java.util.Date;
 import java.util.List;
 
 class GpxExport extends AbstractExport {
-    private static final File exportLocation = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/gpx-export");
+    private static final File exportLocation = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/gpx");
     private static final SimpleDateFormat dateFormatZ = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 
     protected GpxExport() {
@@ -81,7 +81,7 @@ class GpxExport extends AbstractExport {
                 exportLocation.mkdirs();
 
                 final SimpleDateFormat fileNameDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
-                exportFile = new File(exportLocation.toString() + File.separatorChar + fileNameDateFormat.format(new Date()) + ".gpx");
+                exportFile = new File(exportLocation.toString() + File.separatorChar + "export_" + fileNameDateFormat.format(new Date()) + ".gpx");
 
                 gpx = new BufferedWriter(new FileWriter(exportFile));
 
@@ -250,43 +250,50 @@ class GpxExport extends AbstractExport {
 
                     gpx.write("</wpt>");
 
-                    if (cache.hasWaypoints()) {
-                        for (cgWaypoint wp : cache.getWaypoints()) {
-                            gpx.write("<wpt lat=\"");
-                            gpx.write(Double.toString(wp.getCoords().getLatitude()));
-                            gpx.write("\" lon=\"");
-                            gpx.write(Double.toString(wp.getCoords().getLongitude()));
-                            gpx.write("\">");
+                    for (cgWaypoint wp : cache.getWaypoints()) {
+                        gpx.write("<wpt lat=\"");
+                        gpx.write(Double.toString(wp.getCoords().getLatitude()));
+                        gpx.write("\" lon=\"");
+                        gpx.write(Double.toString(wp.getCoords().getLongitude()));
+                        gpx.write("\">");
 
-                            gpx.write("<name>");
-                            gpx.write(StringEscapeUtils.escapeXml(wp.getPrefix()));
-                            gpx.write(StringEscapeUtils.escapeXml(cache.getGeocode().substring(2)));
-                            gpx.write("</name>");
+                        gpx.write("<name>");
+                        gpx.write(StringEscapeUtils.escapeXml(wp.getPrefix()));
+                        gpx.write(StringEscapeUtils.escapeXml(cache.getGeocode().substring(2)));
+                        gpx.write("</name>");
 
-                            gpx.write("<cmt />");
+                        gpx.write("<cmt />");
 
-                            gpx.write("<desc>");
-                            gpx.write(StringEscapeUtils.escapeXml(wp.getNote()));
-                            gpx.write("</desc>");
+                        gpx.write("<desc>");
+                        gpx.write(StringEscapeUtils.escapeXml(wp.getNote()));
+                        gpx.write("</desc>");
 
-                            gpx.write("<sym>");
-                            gpx.write(StringEscapeUtils.escapeXml(wp.getWaypointType().toString()));
-                            gpx.write("</sym>");
+                        gpx.write("<sym>");
+                        gpx.write(StringEscapeUtils.escapeXml(wp.getWaypointType().toString()));
+                        gpx.write("</sym>");
 
-                            gpx.write("<type>Waypoint|");
-                            gpx.write(StringEscapeUtils.escapeXml(wp.getWaypointType().toString()));
-                            gpx.write("</type>");
+                        gpx.write("<type>Waypoint|");
+                        gpx.write(StringEscapeUtils.escapeXml(wp.getWaypointType().toString()));
+                        gpx.write("</type>");
 
-                            gpx.write("</wpt>");
-                        }
+                        gpx.write("</wpt>");
                     }
 
                     publishProgress(i + 1);
                 }
 
                 gpx.write("</gpx>");
+
+                gpx.close();
             } catch (Exception e) {
                 Log.e("GpxExport.ExportTask export", e);
+
+                if (gpx != null) {
+                    try {
+                        gpx.close();
+                    } catch (IOException ee) {
+                    }
+                }
 
                 // delete partial gpx file on error
                 if (exportFile.exists()) {
@@ -294,15 +301,6 @@ class GpxExport extends AbstractExport {
                 }
 
                 return false;
-            } finally {
-                if (gpx != null) {
-                    try {
-                        gpx.close();
-                    } catch (IOException e) {
-                        Log.e("GpxExport.ExportTask export", e);
-                        return false;
-                    }
-                }
             }
 
             return true;
