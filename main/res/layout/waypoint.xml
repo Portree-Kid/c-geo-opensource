@@ -80,6 +80,13 @@
 			<RelativeLayout
 					android:layout_width="fill_parent"
 					android:layout_height="wrap_content" >
+
+				<Button
+				    android:id="@+id/show_parent"
+				    android:layout_width="60dip"
+				    android:text="Parent" 
+				    style="@style/button_small"/>
+
 				<Button style="@style/button_small"
 						android:id="@+id/delete"
 						android:visibility="gone"
@@ -92,6 +99,7 @@
 						android:layout_width="60dip"
 						android:layout_alignParentRight="true"
 						android:text="@string/waypoint_edit" />
+
 			</RelativeLayout>
 		</LinearLayout>
 	</ScrollView>

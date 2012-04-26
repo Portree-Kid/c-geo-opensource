@@ -20,6 +20,7 @@ import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -28,6 +29,17 @@ import android.widget.TextView;
 import java.util.EnumSet;
 
 public class cgeowaypoint extends AbstractActivity {
+
+    public class openParentListener implements OnClickListener {
+
+        @Override
+        public void onClick(View arg0) {
+            Intent editIntent = new Intent(cgeowaypoint.this, CacheDetailActivity.class);
+            editIntent.putExtra("geocode", waypoint.getGeocode());
+            startActivity(editIntent);
+        }
+
+    }
 
     private static final int MENU_ID_NAVIGATION = 0;
     private static final int MENU_ID_CACHES_AROUND = 5;
@@ -94,6 +106,9 @@ public class cgeowaypoint extends AbstractActivity {
 
             final Button buttonEdit = (Button) findViewById(R.id.edit);
             buttonEdit.setOnClickListener(new editWaypointListener());
+
+            final Button buttonParent = (Button) findViewById(R.id.show_parent);
+            buttonParent.setOnClickListener(new openParentListener());
 
             if (waypoint.isUserDefined()) {
                 final Button buttonDelete = (Button) findViewById(R.id.delete);
