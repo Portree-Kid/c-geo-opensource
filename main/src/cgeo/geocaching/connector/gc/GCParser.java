@@ -68,7 +68,6 @@ public abstract class GCParser {
         }
 
         final List<String> cids = new ArrayList<String>();
-        final List<String> guids = new ArrayList<String>();
         String recaptchaChallenge = null;
         String recaptchaText = null;
         String page = pageContent;
@@ -134,8 +133,6 @@ public abstract class GCParser {
 
                 while (matcherGuidAndDisabled.find()) {
                     if (matcherGuidAndDisabled.groupCount() > 0) {
-                        guids.add(matcherGuidAndDisabled.group(1));
-
                         cache.setGuid(matcherGuidAndDisabled.group(1));
                         if (matcherGuidAndDisabled.group(4) != null) {
                             cache.setName(Html.fromHtml(matcherGuidAndDisabled.group(4).trim()).toString());
@@ -630,8 +627,8 @@ public abstract class GCParser {
         }
 
         // waypoints
-        int wpBegin = 0;
-        int wpEnd = 0;
+        int wpBegin;
+        int wpEnd;
 
         wpBegin = page.indexOf("<table class=\"Table\" id=\"ctl00_ContentBody_Waypoints\">");
         if (wpBegin != -1) { // parse waypoints
@@ -994,7 +991,7 @@ public abstract class GCParser {
                     final StringBuilder hdnSelected = new StringBuilder();
 
                     for (TrackableLog tb : trackables) {
-                        String ctl = null;
+                        String ctl;
                         final String action = Integer.toString(tb.id) + tb.action.action;
 
                         if (tb.ctl < 10) {
@@ -1191,7 +1188,7 @@ public abstract class GCParser {
         trackable.setIconUrl(BaseUtils.getMatch(page, GCConstants.PATTERN_TRACKABLE_ICON, true, trackable.getIconUrl()));
 
         // trackable name
-        trackable.setName(BaseUtils.getMatch(page, GCConstants.PATTERN_TRACKABLE_NAME, true, trackable.getName()));
+        trackable.setName(Html.fromHtml(BaseUtils.getMatch(page, GCConstants.PATTERN_TRACKABLE_NAME, true, "")).toString());
 
         // trackable type
         if (StringUtils.isNotBlank(trackable.getName())) {
@@ -1353,7 +1350,7 @@ public abstract class GCParser {
      *            retrieve friend logs
      */
     private static List<LogEntry> loadLogsFromDetails(final String page, final cgCache cache, final boolean friends, final boolean getDataFromPage) {
-        String rawResponse = null;
+        String rawResponse;
 
         if (!getDataFromPage) {
             final Matcher userTokenMatcher = GCConstants.PATTERN_USERTOKEN2.matcher(page);
@@ -1505,7 +1502,7 @@ public abstract class GCParser {
                     final Integer ctl = Integer.valueOf(trackableMatcher.group(3));
                     final Integer id = Integer.valueOf(trackableMatcher.group(5));
                     if (trackCode != null && name != null && ctl != null && id != null) {
-                        final TrackableLog entry = new TrackableLog(trackCode, name, id.intValue(), ctl.intValue());
+                        final TrackableLog entry = new TrackableLog(trackCode, name, id, ctl);
 
                         Log.i("Trackable in inventory (#" + entry.ctl + "/" + entry.id + "): " + entry.trackCode + " - " + entry.name);
                         trackableLogs.add(entry);

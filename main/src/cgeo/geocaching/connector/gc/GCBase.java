@@ -68,7 +68,7 @@ public class GCBase {
     public static SearchResult searchByViewport(final Viewport viewport, final String[] tokens) {
         Strategy strategy = Settings.getLiveMapStrategy();
         if (strategy == Strategy.AUTO) {
-            float speedNow = cgeoapplication.getInstance().getSpeedFromGeo();
+            float speedNow = cgeoapplication.getInstance().currentGeo().getSpeed();
             strategy = speedNow >= 8 ? Strategy.FAST : Strategy.DETAILED; // 8 m/s = 30 km/h
         }
         // return searchByViewport(viewport, tokens, strategy);
@@ -77,7 +77,7 @@ public class GCBase {
         {
             SearchResult result = searchByViewport(viewport, tokens, strategy);
             String text = Formatter.SEPARATOR + strategy.getL10n() + Formatter.SEPARATOR;
-            int speed = (int) cgeoapplication.getInstance().getSpeedFromGeo();
+            int speed = (int) cgeoapplication.getInstance().currentGeo().getSpeed();
             if (Settings.isUseMetricUnits()) {
                 text += speed + " km/h";
             } else {
@@ -376,7 +376,7 @@ public class GCBase {
 
         try {
             final Parameters params = new Parameters("i", geocodeList, "_", String.valueOf(System.currentTimeMillis()));
-            final String data = Tile.requestMapInfo(referer, params, referer);
+            final String data = StringUtils.defaultString(Tile.requestMapInfo(referer, params, referer));
 
             // Example JSON information
             // {"status":"success",

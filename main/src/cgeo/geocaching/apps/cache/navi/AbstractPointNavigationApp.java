@@ -1,7 +1,7 @@
 package cgeo.geocaching.apps.cache.navi;
 
+import cgeo.geocaching.IGeoData;
 import cgeo.geocaching.cgCache;
-import cgeo.geocaching.cgGeo;
 import cgeo.geocaching.cgWaypoint;
 import cgeo.geocaching.geopoint.Geopoint;
 
@@ -24,7 +24,7 @@ abstract class AbstractPointNavigationApp extends AbstractNavigationApp {
     }
 
     @Override
-    public final boolean invoke(cgGeo geo, Activity activity, cgCache cache, cgWaypoint waypoint, Geopoint coords) {
+    public final boolean invoke(IGeoData geo, Activity activity, cgCache cache, cgWaypoint waypoint, Geopoint coords) {
         if (cache == null && waypoint == null && coords == null) {
             return false;
         }
@@ -46,13 +46,24 @@ abstract class AbstractPointNavigationApp extends AbstractNavigationApp {
 
     protected abstract void navigate(Activity activity, Geopoint point);
 
-    private static Geopoint getCoordinates(cgCache cache, cgWaypoint waypoint, Geopoint coords) {
+    /**
+     * Return the first of the cache coordinates, the waypoint coordinates or the extra coordinates. <code>null</code>
+     * entities are skipped.
+     *
+     * @param cache a cache
+     * @param waypoint a waypoint
+     * @param coords extra coordinates
+     * @return the first non-null coordinates, or null if none are set
+     */
+    private static Geopoint getCoordinates(final cgCache cache, final cgWaypoint waypoint, final Geopoint coords) {
         if (cache != null && cache.getCoords() != null) {
             return cache.getCoords();
         }
-        else if (waypoint != null && waypoint.getCoords() != null) {
+
+        if (waypoint != null && waypoint.getCoords() != null) {
             return waypoint.getCoords();
         }
+
         return coords;
     }
 }

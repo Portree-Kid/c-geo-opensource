@@ -30,7 +30,6 @@ import cgeo.geocaching.utils.UnknownTagsHandler;
 
 import com.viewpagerindicator.TitlePageIndicator;
 import com.viewpagerindicator.TitleProvider;
-
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -124,7 +123,6 @@ public class CacheDetailActivity extends AbstractActivity {
 
     private static final String CALENDAR_ADDON_URI = "market://details?id=cgeo.calendar";
 
-    private cgGeo geolocation;
     private cgCache cache;
     private final Progress progress = new Progress();
     private SearchResult search;
@@ -187,10 +185,6 @@ public class CacheDetailActivity extends AbstractActivity {
         setTheme();
         setContentView(R.layout.cacheview);
         setTitle(res.getString(R.string.cache));
-
-        if (geolocation == null) {
-            geolocation = app.startGeo(locationUpdater);
-        }
 
         String geocode = null;
         String guid = null;
@@ -330,9 +324,7 @@ public class CacheDetailActivity extends AbstractActivity {
     public void onResume() {
         super.onResume();
 
-        if (geolocation == null) {
-            geolocation = app.startGeo(locationUpdater);
-        }
+        app.addGeoObserver(locationUpdater);
         if (refreshOnResume) {
             notifyDataSetChanged();
             refreshOnResume = false;
@@ -341,19 +333,11 @@ public class CacheDetailActivity extends AbstractActivity {
 
     @Override
     public void onDestroy() {
-        if (geolocation != null) {
-            geolocation = app.removeGeo();
-        }
-
         super.onDestroy();
     }
 
     @Override
     public void onStop() {
-        if (geolocation != null) {
-            geolocation = app.removeGeo();
-        }
-
         if (cache != null) {
             cache.setChangeNotificationHandler(null);
         }
@@ -363,9 +347,7 @@ public class CacheDetailActivity extends AbstractActivity {
 
     @Override
     public void onPause() {
-        if (geolocation != null) {
-            geolocation = app.removeGeo();
-        }
+        app.deleteGeoObserver(locationUpdater);
 
         super.onPause();
     }
@@ -470,6 +452,7 @@ public class CacheDetailActivity extends AbstractActivity {
                 switch (index) {
                     case MENU_FIELD_COPY:
                         ClipboardUtils.copyToClipboard(clickedItemText);
+                        showToast(res.getString(R.string.clipboard_copy_ok));
                         return true;
                     case MENU_FIELD_TRANSLATE:
                         TranslationUtils.startActivityTranslate(this, Locale.getDefault().getLanguage(), clickedItemText.toString());
@@ -513,14 +496,14 @@ public class CacheDetailActivity extends AbstractActivity {
             case CONTEXT_MENU_WAYPOINT_DEFAULT_NAVIGATION: {
                 final cgWaypoint waypoint = cache.getWaypoint(index);
                 if (waypoint != null) {
-                    NavigationAppFactory.startDefaultNavigationApplication(geolocation, this, null, waypoint, null);
+                    NavigationAppFactory.startDefaultNavigationApplication(app.currentGeo(), this, null, waypoint, null);
                 }
             }
                 break;
             case CONTEXT_MENU_WAYPOINT_NAVIGATE: {
                 final cgWaypoint waypoint = cache.getWaypoint(contextMenuWPIndex);
                 if (waypoint != null) {
-                    NavigationAppFactory.showNavigationMenu(geolocation, this, null, waypoint, null);
+                    NavigationAppFactory.showNavigationMenu(app.currentGeo(), this, null, waypoint, null);
                 }
             }
                 break;
@@ -568,43 +551,41 @@ public class CacheDetailActivity extends AbstractActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         final int menuItem = item.getItemId();
 
-        // no menu selected, but a new sub menu shown
-        if (menuItem == 0) {
-            return false;
-        }
-
-        if (menuItem == MENU_DEFAULT_NAVIGATION) {
-            startDefaultNavigation();
-            return true;
-        } else if (menuItem == MENU_LOG_VISIT) {
-            refreshOnResume = true;
-            cache.logVisit(this);
-            return true;
-        } else if (menuItem == MENU_BROWSER) {
-            cache.openInBrowser(this);
-            return true;
-        } else if (menuItem == MENU_CACHES_AROUND) {
-            cgeocaches.startActivityCachesAround(this, cache.getCoords());
-            return true;
-        } else if (menuItem == MENU_CALENDAR) {
-            addToCalendarWithIntent();
-            return true;
-        } else if (menuItem == MENU_SHARE) {
-            if (cache != null) {
-                cache.shareCache(this, res);
+        switch(menuItem) {
+            case 0:
+                // no menu selected, but a new sub menu shown
+                return false;
+            case MENU_DEFAULT_NAVIGATION:
+                startDefaultNavigation();
                 return true;
-            }
-            return false;
+            case MENU_LOG_VISIT:
+                refreshOnResume = true;
+                cache.logVisit(this);
+                return true;
+            case MENU_BROWSER:
+                cache.openInBrowser(this);
+                return true;
+            case MENU_CACHES_AROUND:
+                cgeocaches.startActivityCachesAround(this, cache.getCoords());
+                return true;
+            case MENU_CALENDAR:
+                addToCalendarWithIntent();
+                return true;
+            case MENU_SHARE:
+                if (cache != null) {
+                    cache.shareCache(this, res);
+                    return true;
+                }
+                return false;
         }
-        if (NavigationAppFactory.onMenuItemSelected(item, geolocation, this, cache, null, null)) {
+        if (NavigationAppFactory.onMenuItemSelected(item, app.currentGeo(), this, cache, null, null)) {
             return true;
         }
         if (GeneralAppsFactory.onMenuItemSelected(item, this, cache)) {
             return true;
         }
 
-        int logType = menuItem - MENU_LOG_VISIT_OFFLINE;
-        cache.logOffline(this, LogType.getById(logType));
+        cache.logOffline(this, LogType.getById(menuItem - MENU_LOG_VISIT_OFFLINE));
         return true;
     }
 
@@ -709,12 +690,9 @@ public class CacheDetailActivity extends AbstractActivity {
         progress.dismiss();
     }
 
-    private class LocationUpdater implements UpdateLocationCallback {
+    private class LocationUpdater extends GeoObserver {
         @Override
-        public void updateLocation(cgGeo geo) {
-            if (geo == null) {
-                return;
-            }
+        public void updateLocation(final IGeoData geo) {
             if (cacheDistanceView == null) {
                 return;
             }
@@ -722,13 +700,13 @@ public class CacheDetailActivity extends AbstractActivity {
             try {
                 StringBuilder dist = new StringBuilder();
 
-                if (geo.coordsNow != null && cache != null && cache.getCoords() != null) {
-                    dist.append(HumanDistance.getHumanDistance(geo.coordsNow.distanceTo(cache.getCoords())));
+                if (geo.getCoords() != null && cache != null && cache.getCoords() != null) {
+                    dist.append(HumanDistance.getHumanDistance(geo.getCoords().distanceTo(cache.getCoords())));
                 }
 
                 if (cache != null && cache.getElevation() != null) {
-                    if (geo.altitudeNow != null) {
-                        double diff = (cache.getElevation() - geo.altitudeNow);
+                    if (geo.getAltitude() != 0.0) {
+                        double diff = cache.getElevation() - geo.getAltitude();
                         if (diff >= 0) {
                             dist.append(" ↗");
                         } else if (diff < 0) {
@@ -863,7 +841,7 @@ public class CacheDetailActivity extends AbstractActivity {
         }
 
         //TODO: previously this used also the search argument "search". check if still needed
-        NavigationAppFactory.startDefaultNavigationApplication(geolocation, this, cache, null, null);
+        NavigationAppFactory.startDefaultNavigationApplication(app.currentGeo(), this, cache, null, null);
     }
 
     /**
@@ -876,7 +854,7 @@ public class CacheDetailActivity extends AbstractActivity {
         }
 
         //TODO: previously this used also the search argument "search". check if still needed
-        NavigationAppFactory.startDefaultNavigationApplication2(geolocation, this, cache, null, null);
+        NavigationAppFactory.startDefaultNavigationApplication2(app.currentGeo(), this, cache, null, null);
     }
 
     /**
@@ -894,7 +872,7 @@ public class CacheDetailActivity extends AbstractActivity {
     }
 
     private void showNavigationMenu() {
-        NavigationAppFactory.showNavigationMenu(geolocation, this, cache, null, null);
+        NavigationAppFactory.showNavigationMenu(app.currentGeo(), this, cache, null, null);
     }
 
     /**
@@ -947,7 +925,7 @@ public class CacheDetailActivity extends AbstractActivity {
                 res.getString(R.string.user_menu_open_browser)
         };
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(CacheDetailActivity.this);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(res.getString(R.string.user_menu_title) + " " + name);
         builder.setItems(items, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int item) {
@@ -1516,10 +1494,6 @@ public class CacheDetailActivity extends AbstractActivity {
                 }
             }
 
-            if (geolocation != null) {
-                locationUpdater.updateLocation(geolocation);
-            }
-
             return view;
         }
 
@@ -1805,7 +1779,7 @@ public class CacheDetailActivity extends AbstractActivity {
             if (cache.getListId() >= StoredList.STANDARD_LIST_ID) {
                 long diff = (System.currentTimeMillis() / (60 * 1000)) - (cache.getDetailedUpdate() / (60 * 1000)); // minutes
 
-                String ago = "";
+                String ago;
                 if (diff < 15) {
                     ago = res.getString(R.string.cache_offline_time_mins_few);
                 } else if (diff < 50) {
@@ -2056,7 +2030,7 @@ public class CacheDetailActivity extends AbstractActivity {
                 // if description has HTML table, add a note at the end of the long description
                 if (unknownTagsHandler.isTableDetected() && descriptionView == view.findViewById(R.id.longdesc)) {
                     final int startPos = description.length();
-                    ((Editable) description).append("\n\n" + res.getString(R.string.cache_description_table_note));
+                    ((Editable) description).append("\n\n").append(res.getString(R.string.cache_description_table_note));
                     ((Editable) description).setSpan(new StyleSpan(Typeface.ITALIC), startPos, description.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     publishProgress();
                 }
@@ -2402,13 +2376,13 @@ public class CacheDetailActivity extends AbstractActivity {
                 wpNavView.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        NavigationAppFactory.startDefaultNavigationApplication(geolocation, CacheDetailActivity.this, null, wpt, null);
+                        NavigationAppFactory.startDefaultNavigationApplication(app.currentGeo(), CacheDetailActivity.this, null, wpt, null);
                     }
                 });
                 wpNavView.setOnLongClickListener(new View.OnLongClickListener() {
                     @Override
                     public boolean onLongClick(View v) {
-                        NavigationAppFactory.startDefaultNavigationApplication2(geolocation, CacheDetailActivity.this, null, wpt, null);
+                        NavigationAppFactory.startDefaultNavigationApplication2(app.currentGeo(), CacheDetailActivity.this, null, wpt, null);
                         return true;
                     }
                 });

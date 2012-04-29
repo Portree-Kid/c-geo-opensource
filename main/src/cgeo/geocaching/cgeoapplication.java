@@ -8,6 +8,7 @@ import cgeo.geocaching.enumerations.LoadFlags.RemoveFlag;
 import cgeo.geocaching.enumerations.LogType;
 import cgeo.geocaching.geopoint.Geopoint;
 import cgeo.geocaching.geopoint.Viewport;
+import cgeo.geocaching.utils.IObserver;
 import cgeo.geocaching.utils.Log;
 
 import org.apache.commons.lang3.StringUtils;
@@ -33,9 +34,7 @@ public class cgeoapplication extends Application {
 
     private cgData storage = null;
     private String action = null;
-    private Geopoint lastCoords = null;
-    private cgGeo geo = null;
-    private boolean geoInUse = false;
+    private volatile GeoDataProvider geo;
     private cgDirection dir = null;
     private boolean dirInUse = false;
     public boolean firstRun = true; // c:geo is just launched
@@ -63,7 +62,6 @@ public class cgeoapplication extends Application {
     public void onTerminate() {
         Log.d("Terminating c:geo...");
 
-        cleanGeo();
         cleanDir();
 
         if (storage != null) {
@@ -114,11 +112,27 @@ public class cgeoapplication extends Application {
         restoreThread.start();
     }
 
-    public void cleanGeo() {
-        if (geo != null) {
-            geo.closeGeo();
-            geo = null;
+    public void addGeoObserver(final IObserver<? super IGeoData> observer) {
+        currentGeoObject().addObserver(observer);
+    }
+
+    public void deleteGeoObserver(final IObserver<? super IGeoData> observer) {
+        currentGeoObject().deleteObserver(observer);
+    }
+
+    private GeoDataProvider currentGeoObject() {
+        if (geo == null) {
+            synchronized(this) {
+                if (geo == null) {
+                    geo = new GeoDataProvider(this);
+                }
+            }
         }
+        return geo;
+    }
+
+    public IGeoData currentGeo() {
+        return currentGeoObject().getMemory();
     }
 
     public void cleanDir() {
@@ -130,50 +144,6 @@ public class cgeoapplication extends Application {
 
     public boolean storageStatus() {
         return storage.status();
-    }
-
-    public cgGeo startGeo(UpdateLocationCallback geoUpdate) {
-        if (geo == null) {
-            geo = new cgGeo();
-            Log.i("Location service started");
-        }
-
-        geo.replaceUpdate(geoUpdate);
-        geoInUse = true;
-
-        return geo;
-    }
-
-    public float getSpeedFromGeo() {
-        return geo != null ? geo.speedNow : 0f;
-    }
-
-    public cgGeo removeGeo() {
-        if (geo != null) {
-            geo.replaceUpdate(null);
-        }
-        geoInUse = false;
-
-        (new removeGeoThread()).start();
-
-        return null;
-    }
-
-    private class removeGeoThread extends Thread {
-
-        @Override
-        public void run() {
-            try {
-                sleep(2500);
-            } catch (Exception e) {
-                // nothing
-            }
-
-            if (!geoInUse && geo != null) {
-                cleanGeo();
-                Log.i("Location service stopped");
-            }
-        }
     }
 
     public cgDirection startDir(Context context, UpdateDirectionCallback dirUpdate) {
@@ -264,10 +234,7 @@ public class cgeoapplication extends Application {
             return null;
         }
 
-        cgTrackable trackable = null;
-        trackable = storage.loadTrackable(geocode);
-
-        return trackable;
+        return storage.loadTrackable(geocode);
     }
 
     /** {@link cgData#allDetailedThere()} */
@@ -304,24 +271,24 @@ public class cgeoapplication extends Application {
         return new SearchResult(geocodes, getAllHistoricCachesCount());
     }
 
-    /** {@link cgData#loadCachedInViewport(long, long, long, long, CacheType)} */
+    /** {@link cgData#loadCachedInViewport(Viewport, CacheType)} */
     public SearchResult getCachedInViewport(final Viewport viewport, final CacheType cacheType) {
         final Set<String> geocodes = storage.loadCachedInViewport(viewport, cacheType);
         return new SearchResult(geocodes);
     }
 
-    /** {@link cgData#loadStoredInViewport(long, long, long, long, CacheType)} */
+    /** {@link cgData#loadStoredInViewport(Viewport, CacheType)} */
     public SearchResult getStoredInViewport(final Viewport viewport, final CacheType cacheType) {
         final Set<String> geocodes = storage.loadStoredInViewport(viewport, cacheType);
         return new SearchResult(geocodes);
     }
 
-    /** {@link cgData#getAllStoredCachesCount(boolean, CacheType, Integer)} */
+    /** {@link cgData#getAllStoredCachesCount(boolean, CacheType, int)} */
     public int getAllStoredCachesCount(final boolean detailedOnly, final CacheType cacheType) {
         return storage.getAllStoredCachesCount(detailedOnly, cacheType, 0);
     }
 
-    /** {@link cgData#getAllStoredCachesCount(boolean, CacheType, Integer)} */
+    /** {@link cgData#getAllStoredCachesCount(boolean, CacheType, int)} */
     public int getAllStoredCachesCount(final boolean detailedOnly, final CacheType cacheType, final Integer list) {
         return storage.getAllStoredCachesCount(detailedOnly, cacheType, list);
     }
@@ -405,14 +372,6 @@ public class cgeoapplication extends Application {
 
     public String getAction() {
         return StringUtils.defaultString(action);
-    }
-
-    public void setLastCoords(final Geopoint coords) {
-        lastCoords = coords;
-    }
-
-    public Geopoint getLastCoords() {
-        return lastCoords;
     }
 
     /** {@link cgData#saveLogOffline(String, Date, LogType, String)} */

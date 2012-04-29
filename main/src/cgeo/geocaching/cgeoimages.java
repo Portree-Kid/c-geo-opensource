@@ -60,14 +60,14 @@ public class cgeoimages extends AbstractActivity {
     private void loadImages(final List<cgImage> images, final int progressMessage, final boolean offline) {
 
         count = images.size();
-        progressDialog = new ProgressDialog(cgeoimages.this);
+        progressDialog = new ProgressDialog(this);
         progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         progressDialog.setMessage(res.getString(progressMessage));
         progressDialog.setCancelable(true);
         progressDialog.setMax(count);
         progressDialog.show();
 
-        LinearLayout rowView = null;
+        LinearLayout rowView;
         for (final cgImage img : images) {
             rowView = (LinearLayout) inflater.inflate(R.layout.cache_image_item, null);
 

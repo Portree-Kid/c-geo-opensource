@@ -88,7 +88,7 @@ public class cgeotrackable extends AbstractActivity {
                 addDetail(R.string.trackable_name, StringUtils.isNotBlank(trackable.getName()) ? Html.fromHtml(trackable.getName()).toString() : res.getString(R.string.trackable_unknown));
 
                 // trackable type
-                String tbType = null;
+                String tbType;
                 if (StringUtils.isNotBlank(trackable.getType())) {
                     tbType = Html.fromHtml(trackable.getType()).toString();
                 } else {
@@ -111,7 +111,7 @@ public class cgeotrackable extends AbstractActivity {
                         trackable.getSpottedType() == cgTrackable.SPOTTED_UNKNOWN ||
                         trackable.getSpottedType() == cgTrackable.SPOTTED_OWNER
                 ) {
-                    String text = null;
+                    String text;
 
                     if (trackable.getSpottedType() == cgTrackable.SPOTTED_CACHE) {
                         text = res.getString(R.string.trackable_spotted_in_cache) + " " + Html.fromHtml(trackable.getSpottedName()).toString();
@@ -207,7 +207,7 @@ public class cgeotrackable extends AbstractActivity {
 
                         @Override
                         public void run() {
-                            BitmapDrawable image = null;
+                            BitmapDrawable image;
                             try {
                                 HtmlImage imgGetter = new HtmlImage(cgeotrackable.this, geocode, true, 0, false);
 
@@ -350,21 +350,20 @@ public class cgeotrackable extends AbstractActivity {
     }
 
     @Override
-    public boolean onContextItemSelected(MenuItem item) {
-        final int id = item.getItemId();
-
-        if (id == 1) {
-            cgeocaches.startActivityOwner(this, contextMenuUser);
-            return true;
-        } else if (id == 2) {
-            cgeocaches.startActivityUserName(this, contextMenuUser);
-            return true;
-        } else if (id == 3) {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.geocaching.com/profile/?u=" + URLEncoder.encode(contextMenuUser))));
-
-            return true;
+    public boolean onContextItemSelected(final MenuItem item) {
+        switch (item.getItemId()) {
+            case 1:
+                cgeocaches.startActivityOwner(this, contextMenuUser);
+                return true;
+            case 2:
+                cgeocaches.startActivityUserName(this, contextMenuUser);
+                return true;
+            case 3:
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.geocaching.com/profile/?u=" + URLEncoder.encode(contextMenuUser))));
+                return true;
+            default:
+                return false;
         }
-        return false;
     }
 
     @Override
@@ -460,7 +459,7 @@ public class cgeotrackable extends AbstractActivity {
 
                 TextView logView = (TextView) rowView.findViewById(R.id.log);
                 logView.setMovementMethod(LinkMovementMethod.getInstance());
-                logView.setText(Html.fromHtml(log.log, new HtmlImage(cgeotrackable.this, null, false, StoredList.TEMPORARY_LIST_ID, false), null), TextView.BufferType.SPANNABLE);
+                logView.setText(Html.fromHtml(log.log, new HtmlImage(this, null, false, StoredList.TEMPORARY_LIST_ID, false), null), TextView.BufferType.SPANNABLE);
 
                 // add LogImages
                 LinearLayout logLayout = (LinearLayout) rowView.findViewById(R.id.log_layout);
@@ -555,7 +554,7 @@ public class cgeotrackable extends AbstractActivity {
                 return;
             }
 
-            BitmapDrawable image = null;
+            BitmapDrawable image;
             try {
                 HtmlImage imgGetter = new HtmlImage(cgeotrackable.this, trackable.getGeocode(), false, 0, false);
 

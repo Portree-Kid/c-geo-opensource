@@ -10,6 +10,7 @@ import cgeo.geocaching.geopoint.HumanDistance;
 import cgeo.geocaching.geopoint.IConversion;
 import cgeo.geocaching.maps.CGeoMap;
 import cgeo.geocaching.ui.Formatter;
+import cgeo.geocaching.utils.IObserver;
 import cgeo.geocaching.utils.Log;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -22,12 +23,11 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
 import android.location.Address;
 import android.location.Geocoder;
-import android.location.GpsStatus;
-import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -58,7 +58,6 @@ public class cgeo extends AbstractActivity {
     public static final int SEARCH_REQUEST_CODE = 2;
 
     private int version = 0;
-    private cgGeo geo = null;
     private TextView filterTitle = null;
     private boolean cleanupRunning = false;
     private int countBubbleCnt = 0;
@@ -67,8 +66,7 @@ public class cgeo extends AbstractActivity {
     private boolean addressObtaining = false;
     private boolean initialized = false;
 
-    private LocationManager locationManager;
-    private boolean gpsEnabled = false;
+    final private UpdateLocation locationUpdater = new UpdateLocation();
 
     private Handler updateUserInfoHandler = new Handler() {
 
@@ -115,9 +113,7 @@ public class cgeo extends AbstractActivity {
                         addText.append(address.getAdminArea());
                     }
 
-                    if (geo != null) {
-                        addCoords = geo.coordsNow;
-                    }
+                    addCoords = app.currentGeo().getCoords();
 
                     TextView navLocation = (TextView) findViewById(R.id.nav_location);
                     navLocation.setText(addText.toString());
@@ -130,40 +126,40 @@ public class cgeo extends AbstractActivity {
         }
     };
 
-    private class SatellitesHandler extends Handler {
+    private class SatellitesHandler extends Handler implements IObserver<IGeoData> {
 
-        final private static int NO_GPS = 0;
-        final private static int SATELLITES = 1;
+        private boolean gpsEnabled = false;
+        private int satellitesFixed = 0;
+        private int satellitesVisible = 0;
 
         @Override
         public void handleMessage(final Message msg) {
-            String satellites = "";
-            switch (msg.what) {
-                case NO_GPS:
-                    satellites = res.getString(R.string.loc_gps_disabled);
-                    break;
-                case SATELLITES:
-                    final int satellitesFixed = msg.arg1;
-                    final int satellitesVisible = msg.arg2;
-                    if (satellitesFixed > 0) {
-                        satellites = res.getString(R.string.loc_sat) + ": " + satellitesFixed + '/' + satellitesVisible;
-                    } else if (satellitesVisible >= 0) {
-                        satellites = res.getString(R.string.loc_sat) + ": 0/" + satellitesVisible;
-                    }
-                    break;
+            final IGeoData data = (IGeoData) msg.obj;
+            if (data.getGpsEnabled() == gpsEnabled &&
+                    data.getSatellitesFixed() == satellitesFixed &&
+                    data.getSatellitesVisible() == satellitesVisible) {
+                return;
             }
+            gpsEnabled = data.getGpsEnabled();
+            satellitesFixed = data.getSatellitesFixed();
+            satellitesVisible = data.getSatellitesVisible();
+
             final TextView navSatellites = (TextView) findViewById(R.id.nav_satellites);
-            navSatellites.setText(satellites);
+            if (gpsEnabled) {
+                if (satellitesFixed > 0) {
+                    navSatellites.setText(res.getString(R.string.loc_sat) + ": " + satellitesFixed + '/' + satellitesVisible);
+                } else if (satellitesVisible >= 0) {
+                    navSatellites.setText(res.getString(R.string.loc_sat) + ": 0/" + satellitesVisible);
+                }
+            } else {
+                navSatellites.setText(res.getString(R.string.loc_gps_disabled));
+            }
         }
 
-        public void noGps() {
-            obtainMessage(NO_GPS).sendToTarget();
+        @Override
+        public void update(final IGeoData data) {
+            obtainMessage(0, data).sendToTarget();
         }
-
-        public void satellites(final int fixed, final int visible) {
-            obtainMessage(SATELLITES, fixed, visible).sendToTarget();
-        }
-
     }
 
     private SatellitesHandler satellitesHandler = new SatellitesHandler();
@@ -184,21 +180,6 @@ public class cgeo extends AbstractActivity {
         }
     };
 
-    private final GpsStatus.Listener gpsListener = new GpsStatus.Listener() {
-
-        @Override
-        public void onGpsStatusChanged(int event) {
-            if (event == GpsStatus.GPS_EVENT_STARTED && !gpsEnabled) {
-                satellitesHandler.satellites(0, 0);
-                gpsEnabled = true;
-            } else if (event == GpsStatus.GPS_EVENT_STOPPED && gpsEnabled) {
-                satellitesHandler.noGps();
-                gpsEnabled = false;
-            }
-        }
-
-    };
-
     public cgeo() {
         super("c:geo-main-screen");
     }
@@ -209,29 +190,22 @@ public class cgeo extends AbstractActivity {
 
         app.setAction(null);
 
-        app.cleanGeo();
         app.cleanDir();
 
         setContentView(R.layout.main);
         setDefaultKeyMode(DEFAULT_KEYS_SEARCH_LOCAL); // type to search
 
         try {
-            PackageManager manager = this.getPackageManager();
-            PackageInfo info = manager.getPackageInfo(this.getPackageName(), 0);
-
+            final PackageInfo info = getPackageManager().getPackageInfo(this.getPackageName(), 0);
             version = info.versionCode;
-
-            Log.i("Starting " + info.packageName + " " + info.versionCode + " a.k.a " + info.versionName + "...");
-
-            info = null;
-            manager = null;
-        } catch (Exception e) {
+            Log.i("Starting " + info.packageName + " " + info.versionCode + " a.k.a " + info.versionName + "…");
+        } catch (final NameNotFoundException e) {
             Log.i("No info.");
         }
 
         try {
             if (!Settings.isHelpShown()) {
-                RelativeLayout helper = (RelativeLayout) findViewById(R.id.helper);
+                final RelativeLayout helper = (RelativeLayout) findViewById(R.id.helper);
                 if (helper != null) {
                     helper.setVisibility(View.VISIBLE);
                     helper.setClickable(true);
@@ -249,8 +223,6 @@ public class cgeo extends AbstractActivity {
             // nothing
         }
 
-        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-
         init();
     }
 
@@ -264,12 +236,9 @@ public class cgeo extends AbstractActivity {
     @Override
     public void onResume() {
         super.onResume();
-
-        gpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        locationManager.addGpsStatusListener(gpsListener);
-
+        app.addGeoObserver(locationUpdater);
+        app.addGeoObserver(satellitesHandler);
         updateUserInfoHandler.sendEmptyMessage(-1);
-
         init();
     }
 
@@ -278,34 +247,20 @@ public class cgeo extends AbstractActivity {
         initialized = false;
         app.showLoginToast = true;
 
-        if (geo != null) {
-            geo = app.removeGeo();
-        }
-
         super.onDestroy();
     }
 
     @Override
     public void onStop() {
         initialized = false;
-
-        if (geo != null) {
-            geo = app.removeGeo();
-        }
-
         super.onStop();
     }
 
     @Override
     public void onPause() {
         initialized = false;
-
-        locationManager.removeGpsStatusListener(gpsListener);
-
-        if (geo != null) {
-            geo = app.removeGeo();
-        }
-
+        app.deleteGeoObserver(locationUpdater);
+        app.deleteGeoObserver(satellitesHandler);
         super.onPause();
     }
 
@@ -405,11 +360,8 @@ public class cgeo extends AbstractActivity {
 
         // context menu for offline button
         if (v.getId() == R.id.search_offline) {
-            List<StoredList> cacheLists = app.getLists();
-            int listCount = cacheLists.size();
             menu.setHeaderTitle(res.getString(R.string.list_title));
-            for (int i = 0; i < listCount; i++) {
-                StoredList list = cacheLists.get(i);
+            for (final StoredList list : app.getLists()) {
                 menu.add(Menu.NONE, MENU_OPEN_LIST + list.id, Menu.NONE, list.getTitleAndCount());
             }
             return;
@@ -458,23 +410,22 @@ public class cgeo extends AbstractActivity {
     }
 
     @Override
-    public boolean onContextItemSelected(MenuItem item) {
+    public boolean onContextItemSelected(final MenuItem item) {
         final int id = item.getItemId();
+        if (id < 0) {
+            return false;
+        }
 
         if (id == 0) {
             Settings.setCacheType(CacheType.ALL);
             setFilterTitle();
-
-            return true;
         } else if (id > MENU_OPEN_LIST) {
-            int listId = id - MENU_OPEN_LIST;
-            Settings.saveLastList(listId);
+            Settings.saveLastList(id - MENU_OPEN_LIST);
             cgeocaches.startActivityOffline(this);
-            return true;
-        } else if (id > 0) {
+        } else {
             final String itemTitle = item.getTitle().toString();
             CacheType cacheType = CacheType.ALL;
-            for (CacheType ct : CacheType.values()) {
+            for (final CacheType ct : CacheType.values()) {
                 if (ct.getL10n().equalsIgnoreCase(itemTitle)) {
                     cacheType = ct;
                     break;
@@ -482,11 +433,9 @@ public class cgeo extends AbstractActivity {
             }
             Settings.setCacheType(cacheType);
             setFilterTitle();
-
-            return true;
         }
 
-        return false;
+        return true;
     }
 
     private void setFilterTitle() {
@@ -516,10 +465,6 @@ public class cgeo extends AbstractActivity {
 
         if (app.firstRun) {
             (new firstLogin()).start();
-        }
-
-        if (geo == null) {
-            geo = app.startGeo(new UpdateLocation());
         }
 
         final View findOnMap = findViewById(R.id.map);
@@ -601,21 +546,16 @@ public class cgeo extends AbstractActivity {
                 .show();
     }
 
-    private class UpdateLocation implements UpdateLocationCallback {
-
-        private final View nearestView = findViewById(R.id.nearest);
-        private final TextView navType = (TextView) findViewById(R.id.nav_type);
-        private final TextView navAccuracy = (TextView) findViewById(R.id.nav_accuracy);
-        private final TextView navLocation = (TextView) findViewById(R.id.nav_location);
+    private class UpdateLocation extends GeoObserver {
 
         @Override
-        public void updateLocation(cgGeo geo) {
-            if (geo == null) {
-                return;
-            }
-
+        public void updateLocation(final IGeoData geo) {
+            final View nearestView = findViewById(R.id.nearest);
+            final TextView navType = (TextView) findViewById(R.id.nav_type);
+            final TextView navAccuracy = (TextView) findViewById(R.id.nav_accuracy);
+            final TextView navLocation = (TextView) findViewById(R.id.nav_location);
             try {
-                if (geo.coordsNow != null) {
+                if (geo.getCoords() != null) {
                     if (!nearestView.isClickable()) {
                         nearestView.setFocusable(true);
                         nearestView.setClickable(true);
@@ -627,20 +567,14 @@ public class cgeo extends AbstractActivity {
                         nearestView.setBackgroundResource(R.drawable.main_nearby);
                     }
 
-                    if (!gpsEnabled) {
-                        satellitesHandler.noGps();
-                    } else {
-                        satellitesHandler.satellites(geo.satellitesFixed, geo.satellitesVisible);
-                    }
+                    navType.setText(res.getString(geo.getLocationProvider().resourceId));
 
-                    navType.setText(res.getString(geo.locationProvider.resourceId));
-
-                    if (geo.accuracyNow >= 0) {
-                        int speed = Math.round(geo.speedNow) * 60 * 60 / 1000;
+                    if (geo.getAccuracy() >= 0) {
+                        int speed = Math.round(geo.getSpeed()) * 60 * 60 / 1000;
                         if (Settings.isUseMetricUnits()) {
-                            navAccuracy.setText("±" + Math.round(geo.accuracyNow) + " m" + Formatter.SEPARATOR + speed + " km/h");
+                            navAccuracy.setText("±" + Math.round(geo.getAccuracy()) + " m" + Formatter.SEPARATOR + speed + " km/h");
                         } else {
-                            navAccuracy.setText("±" + Math.round(geo.accuracyNow * IConversion.METERS_TO_FEET) + " ft" + Formatter.SEPARATOR + speed / IConversion.MILES_TO_KILOMETER + " mph");
+                            navAccuracy.setText("±" + Math.round(geo.getAccuracy() * IConversion.METERS_TO_FEET) + " ft" + Formatter.SEPARATOR + speed / IConversion.MILES_TO_KILOMETER + " mph");
                         }
                     } else {
                         navAccuracy.setText(null);
@@ -650,15 +584,15 @@ public class cgeo extends AbstractActivity {
                         if (addCoords == null) {
                             navLocation.setText(res.getString(R.string.loc_no_addr));
                         }
-                        if (addCoords == null || (geo.coordsNow.distanceTo(addCoords) > 0.5 && !addressObtaining)) {
+                        if (addCoords == null || (geo.getCoords().distanceTo(addCoords) > 0.5 && !addressObtaining)) {
                             (new ObtainAddressThread()).start();
                         }
                     } else {
-                        if (geo.altitudeNow != null) {
-                            final String humanAlt = HumanDistance.getHumanDistance(geo.altitudeNow.floatValue() / 1000);
-                            navLocation.setText(geo.coordsNow + " | " + humanAlt);
+                        if (geo.getAltitude() != 0.0) {
+                            final String humanAlt = HumanDistance.getHumanDistance((float) geo.getAltitude() / 1000);
+                            navLocation.setText(geo.getCoords() + " | " + humanAlt);
                         } else {
-                            navLocation.setText(geo.coordsNow.toString());
+                            navLocation.setText(geo.getCoords().toString());
                         }
                     }
                 } else {
@@ -692,12 +626,12 @@ public class cgeo extends AbstractActivity {
      *            unused here but needed since this method is referenced from XML layout
      */
     public void cgeoFindNearest(View v) {
-        if (geo == null || geo.coordsNow == null) {
+        if (app.currentGeo().getCoords() == null) {
             return;
         }
 
         findViewById(R.id.nearest).setPressed(true);
-        cgeocaches.startActivityNearest(this, geo.coordsNow);
+        cgeocaches.startActivityNearest(this, app.currentGeo().getCoords());
     }
 
     /**
@@ -859,9 +793,6 @@ public class cgeo extends AbstractActivity {
 
         @Override
         public void run() {
-            if (geo == null) {
-                return;
-            }
             if (addressObtaining) {
                 return;
             }
@@ -869,8 +800,8 @@ public class cgeo extends AbstractActivity {
 
             try {
                 final Geocoder geocoder = new Geocoder(cgeo.this, Locale.getDefault());
-
-                addresses = geocoder.getFromLocation(geo.coordsNow.getLatitude(), geo.coordsNow.getLongitude(), 1);
+                final Geopoint coords = app.currentGeo().getCoords();
+                addresses = geocoder.getFromLocation(coords.getLatitude(), coords.getLongitude(), 1);
             } catch (Exception e) {
                 Log.i("Failed to obtain address");
             }

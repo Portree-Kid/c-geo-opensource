@@ -1,5 +1,7 @@
 package cgeo.geocaching.maps;
 
+import cgeo.geocaching.GeoObserver;
+import cgeo.geocaching.IGeoData;
 import cgeo.geocaching.IWaypoint;
 import cgeo.geocaching.LiveMapInfo;
 import cgeo.geocaching.R;
@@ -7,14 +9,12 @@ import cgeo.geocaching.SearchResult;
 import cgeo.geocaching.Settings;
 import cgeo.geocaching.StoredList;
 import cgeo.geocaching.UpdateDirectionCallback;
-import cgeo.geocaching.UpdateLocationCallback;
+import cgeo.geocaching.activity.ActivityMixin;
 import cgeo.geocaching.cgCache;
 import cgeo.geocaching.cgDirection;
-import cgeo.geocaching.cgGeo;
 import cgeo.geocaching.cgWaypoint;
 import cgeo.geocaching.cgeoapplication;
 import cgeo.geocaching.cgeocaches;
-import cgeo.geocaching.activity.ActivityMixin;
 import cgeo.geocaching.connector.ConnectorFactory;
 import cgeo.geocaching.connector.gc.GCBase;
 import cgeo.geocaching.connector.gc.Login;
@@ -121,9 +121,8 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
     private MapViewImpl mapView = null;
     private MapControllerImpl mapController = null;
     private cgeoapplication app = null;
-    private cgGeo geo = null;
     private cgDirection dir = null;
-    private UpdateLocationCallback geoUpdate = new UpdateLoc();
+    final private GeoObserver geoUpdate = new UpdateLoc();
     private UpdateDirectionCallback dirUpdate = new UpdateDir();
     private SearchResult searchIntent = null;
     private String geocodeIntent = null;
@@ -283,9 +282,6 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                     waitDialog.setOnCancelListener(null);
                 }
 
-                if (geo == null) {
-                    geo = app.startGeo(geoUpdate);
-                }
                 if (Settings.isUseCompass() && dir == null) {
                     dir = app.startDir(activity, dirUpdate);
                 }
@@ -298,9 +294,6 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                 loadDetailsThread.stopIt();
             }
 
-            if (geo == null) {
-                geo = app.startGeo(geoUpdate);
-            }
             if (Settings.isUseCompass() && dir == null) {
                 dir = app.startDir(activity, dirUpdate);
             }
@@ -402,9 +395,6 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
         activity.setContentView(mapProvider.getMapLayoutId());
         ActivityMixin.setTitle(activity, res.getString(R.string.map_map));
 
-        if (geo == null) {
-            geo = app.startGeo(geoUpdate);
-        }
         if (Settings.isUseCompass() && dir == null) {
             dir = app.startDir(activity, dirUpdate);
         }
@@ -442,9 +432,6 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
         mapController.setZoom(Settings.getMapZoom());
 
         // start location and directory services
-        if (geo != null) {
-            geoUpdate.updateLocation(geo);
-        }
         if (dir != null) {
             dirUpdate.updateDirection(dir);
         }
@@ -498,14 +485,10 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
         }
 
         app.setAction(StringUtils.defaultIfBlank(geocodeIntent, null));
-        if (geo == null) {
-            geo = app.startGeo(geoUpdate);
-        }
+        app.addGeoObserver(geoUpdate);
         if (Settings.isUseCompass() && dir == null) {
             dir = app.startDir(activity, dirUpdate);
         }
-
-        geoUpdate.updateLocation(geo);
 
         if (dir != null) {
             dirUpdate.updateDirection(dir);
@@ -541,9 +524,6 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
         if (dir != null) {
             dir = app.removeDir();
         }
-        if (geo != null) {
-            geo = app.removeGeo();
-        }
 
         savePrefs();
 
@@ -569,9 +549,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
         if (dir != null) {
             dir = app.removeDir();
         }
-        if (geo != null) {
-            geo = app.removeGeo();
-        }
+        app.deleteGeoObserver(geoUpdate);
 
         savePrefs();
 
@@ -596,9 +574,6 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
 
         if (dir != null) {
             dir = app.removeDir();
-        }
-        if (geo != null) {
-            geo = app.removeGeo();
         }
 
         savePrefs();
@@ -746,9 +721,6 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                                     loadDetailsThread.stopIt();
                                 }
 
-                                if (geo == null) {
-                                    geo = app.startGeo(geoUpdate);
-                                }
                                 if (Settings.isUseCompass() && dir == null) {
                                     dir = app.startDir(activity, dirUpdate);
                                 }
@@ -897,21 +869,17 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
     }
 
     // Set center of map to my location if appropriate.
-    private void myLocationInMiddle() {
-        if (followMyLocation && geo != null) {
-            centerMap(geo.coordsNow);
+    private void myLocationInMiddle(final IGeoData geo) {
+        if (followMyLocation) {
+            centerMap(geo.getCoords());
         }
     }
 
     // class: update location
-    private class UpdateLoc implements UpdateLocationCallback {
+    private class UpdateLoc extends GeoObserver {
 
         @Override
-        public void updateLocation(cgGeo geo) {
-            if (geo == null) {
-                return;
-            }
-
+        protected void updateLocation(final IGeoData geo) {
             try {
                 boolean repaintRequired = false;
 
@@ -919,20 +887,20 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                     overlayPosition = mapView.createAddPositionOverlay(activity);
                 }
 
-                if (overlayPosition != null && geo.location != null) {
-                    overlayPosition.setCoordinates(geo.location);
+                if (overlayPosition != null && geo.getLocation() != null) {
+                    overlayPosition.setCoordinates(geo.getLocation());
                 }
 
-                if (geo.coordsNow != null) {
+                if (geo.getCoords() != null) {
                     if (followMyLocation) {
-                        myLocationInMiddle();
+                        myLocationInMiddle(geo);
                     } else {
                         repaintRequired = true;
                     }
                 }
 
-                if (!Settings.isUseCompass() || geo.speedNow > 5) { // use GPS when speed is higher than 18 km/h
-                    overlayPosition.setHeading(geo.bearingNow);
+                if (!Settings.isUseCompass() || geo.getSpeed() > 5) { // use GPS when speed is higher than 18 km/h
+                    overlayPosition.setHeading(geo.getBearing());
                     repaintRequired = true;
                 }
 
@@ -955,7 +923,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                 return;
             }
 
-            if (overlayPosition != null && mapView != null && (geo == null || geo.speedNow <= 5)) { // use compass when speed is lower than 18 km/h
+            if (overlayPosition != null && mapView != null && (app.currentGeo().getSpeed() <= 5)) { // use compass when speed is lower than 18 km/h
                 overlayPosition.setHeading(dir.directionNow);
                 mapView.repaintRequired(overlayPosition);
             }
@@ -1361,7 +1329,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
             List<OtherCachersOverlayItemImpl> items = new ArrayList<OtherCachersOverlayItemImpl>();
 
             int counter = 0;
-            OtherCachersOverlayItemImpl item = null;
+            OtherCachersOverlayItemImpl item;
 
             for (Go4CacheUser userOne : users) {
                 if (userOne.getCoords() == null) {
@@ -1462,11 +1430,10 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
             if (dir != null) {
                 dir = app.removeDir();
             }
-            if (geo != null) {
-                geo = app.removeGeo();
-            }
 
-            for (String geocode : geocodes) {
+            app.deleteGeoObserver(geoUpdate);
+
+            for (final String geocode : geocodes) {
                 try {
                     if (handler.isCancelled()) {
                         break;
@@ -1510,6 +1477,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
 
             // we're done
             handler.sendEmptyMessage(FINISHED_LOADING_DETAILS);
+            app.addGeoObserver(geoUpdate);
         }
     }
 
@@ -1591,7 +1559,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
     private void switchMyLocationButton() {
         if (followMyLocation) {
             myLocSwitch.setImageResource(R.drawable.actionbar_mylocation_on);
-            myLocationInMiddle();
+            myLocationInMiddle(app.currentGeo());
         } else {
             myLocSwitch.setImageResource(R.drawable.actionbar_mylocation_off);
         }
@@ -1692,12 +1660,10 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
      *            Waypoint. Mutally exclusive with cache
      * @return
      */
-    private CachesOverlayItemImpl getItem(IWaypoint coord, cgCache cache, cgWaypoint waypoint) {
+    private CachesOverlayItemImpl getItem(final IWaypoint coord, final cgCache cache, final cgWaypoint waypoint) {
         if (cache != null) {
-
-            CachesOverlayItemImpl item = mapProvider.getCachesOverlayItem(coord, cache.getType());
-
-            int hashcode = new HashCodeBuilder()
+            final CachesOverlayItemImpl item = mapProvider.getCachesOverlayItem(coord, cache.getType());
+            final int hashcode = new HashCodeBuilder()
                 .append(cache.isReliableLatLon())
                 .append(cache.getType().id)
                     .append(cache.isDisabled() || cache.isArchived())
@@ -1709,23 +1675,20 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                     .append(cache.getListId() > 0)
                 .toHashCode();
 
-            LayerDrawable ldFromCache = CGeoMap.overlaysCache.get(hashcode);
+            final LayerDrawable ldFromCache = CGeoMap.overlaysCache.get(hashcode);
             if (ldFromCache != null) {
                 item.setMarker(ldFromCache);
                 return item;
             }
 
-            ArrayList<Drawable> layers = new ArrayList<Drawable>();
-            ArrayList<int[]> insets = new ArrayList<int[]>();
-
+            // Set initial capacities to the maximum of layers and insets to avoid dynamic reallocation
+            final ArrayList<Drawable> layers = new ArrayList<Drawable>(9);
+            final ArrayList<int[]> insets = new ArrayList<int[]>(8);
 
             // background: disabled or not
-            Drawable marker = getResources().getDrawable(R.drawable.marker);
-            if (cache.isDisabled() || cache.isArchived()) {
-                marker = getResources().getDrawable(R.drawable.marker_disabled);
-            }
+            final Drawable marker = getResources().getDrawable(cache.isDisabled() || cache.isArchived() ? R.drawable.marker_disabled : R.drawable.marker);
             layers.add(marker);
-            int resolution = marker.getIntrinsicWidth() > 40 ? 1 : 0;
+            final int resolution = marker.getIntrinsicWidth() > 40 ? 1 : 0;
             // reliable or not
             if (!cache.isReliableLatLon()) {
                 insets.add(INSET_RELIABLE[resolution]);
@@ -1735,7 +1698,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
             layers.add(getResources().getDrawable(cache.getType().markerId));
             insets.add(INSET_TYPE[resolution]);
             // own
-            if ( cache.isOwn() ) {
+            if (cache.isOwn()) {
                 layers.add(getResources().getDrawable(R.drawable.marker_own));
                 insets.add(INSET_OWN[resolution]);
                 // if not, checked if stored
@@ -1763,11 +1726,10 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                 insets.add(INSET_PERSONALNOTE[resolution]);
             }
 
-
-            LayerDrawable ld = new LayerDrawable(layers.toArray(new Drawable[layers.size()]));
+            final LayerDrawable ld = new LayerDrawable(layers.toArray(new Drawable[layers.size()]));
 
             int index = 1;
-            for ( int[] inset : insets) {
+            for (final int[] inset : insets) {
                 ld.setLayerInset(index++, inset[0], inset[1], inset[2], inset[3]);
             }
 
@@ -1775,10 +1737,10 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
 
             item.setMarker(ld);
             return item;
+        }
 
-        } else if (waypoint != null) {
-
-            CachesOverlayItemImpl item = mapProvider.getCachesOverlayItem(coord, null);
+        if (waypoint != null) {
+            final CachesOverlayItemImpl item = mapProvider.getCachesOverlayItem(coord, null);
             Drawable[] layers = new Drawable[2];
             layers[0] = getResources().getDrawable(R.drawable.marker);
             layers[1] = getResources().getDrawable(waypoint.getWaypointType().markerId);
@@ -1794,7 +1756,6 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
         }
 
         return null;
-
     }
 
 }

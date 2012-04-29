@@ -150,7 +150,7 @@ public class PositionOverlay implements GeneralOverlay {
         if (Settings.isMapTrail()) {
             int size = history.size();
             if (size > 1) {
-                int alpha = 0;
+                int alpha;
                 int alphaCnt = size - 201;
                 if (alphaCnt < 1) {
                     alphaCnt = 1;
@@ -210,7 +210,7 @@ public class PositionOverlay implements GeneralOverlay {
         marginTop = center.y - heightArrowHalf;
 
         Matrix matrix = new Matrix();
-        matrix.setRotate(heading.floatValue(), widthArrowHalf, heightArrowHalf);
+        matrix.setRotate(heading, widthArrowHalf, heightArrowHalf);
         matrix.postTranslate(marginLeft, marginTop);
 
         canvas.drawBitmap(arrow, matrix, null);

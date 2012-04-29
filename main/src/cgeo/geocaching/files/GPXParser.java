@@ -193,7 +193,7 @@ public abstract class GPXParser extends FileParser {
                 return null; // id not found
             }
             // get text for string
-            String stringName = null;
+            String stringName;
             try {
                 stringName = cgeoapplication.getInstance().getResources().getResourceName(stringId);
             } catch (NullPointerException e) {
@@ -436,7 +436,7 @@ public abstract class GPXParser extends FileParser {
 
                 @Override
                 public void end(String watchList) {
-                    cache.setOnWatchlist(Boolean.valueOf(watchList.trim()).booleanValue());
+                    cache.setOnWatchlist(Boolean.valueOf(watchList.trim()));
                 }
             });
 
