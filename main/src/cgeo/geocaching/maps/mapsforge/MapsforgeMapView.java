@@ -276,8 +276,16 @@ public class MapsforgeMapView extends MapView implements MapViewImpl {
 
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
-        gestureDetector.onTouchEvent(ev);
-        return super.onTouchEvent(ev);
+        try {
+            Log.d("Event on Map " + ev.getEventTime() + "\t" + ev.getAction());
+            if (gestureDetector.onTouchEvent(ev)) {
+                //                return true;
+            }
+            return super.onTouchEvent(ev);
+        } catch (Exception e) {
+            Log.e("GoogleMapView.onTouchEvent", e);
+        }
+        return false;
     }
 
     private class GestureListener extends SimpleOnGestureListener {

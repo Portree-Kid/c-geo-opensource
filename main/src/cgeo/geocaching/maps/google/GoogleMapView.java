@@ -157,7 +157,9 @@ public class GoogleMapView extends MapView implements MapViewImpl {
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
         try {
-            gestureDetector.onTouchEvent(ev);
+            if (gestureDetector.onTouchEvent(ev)) {
+                return true;
+            }
             return super.onTouchEvent(ev);
         } catch (Exception e) {
             Log.e("GoogleMapView.onTouchEvent", e);
