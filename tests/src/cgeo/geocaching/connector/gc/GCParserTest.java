@@ -18,17 +18,46 @@ import cgeo.test.Compare;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import android.os.Handler;
 import android.test.suitebuilder.annotation.MediumTest;
 
 import java.util.ArrayList;
 
 public class GCParserTest extends AbstractResourceInstrumentationTestCase {
-    public void testUnpublishedCache() {
-        final String page = getFileContent(R.raw.cache_unpublished);
+
+    public void testUnpublishedCacheNotOwner() {
+        final int cache = R.raw.cache_unpublished;
+        assertUnpublished(cache);
+    }
+
+    public void testUnpublishedCacheOwner() {
+        final int cache = R.raw.gc433yc_owner_unpublished;
+        assertUnpublished(cache);
+    }
+
+    private void assertUnpublished(final int cache) {
+        final String page = getFileContent(cache);
         SearchResult result = GCParser.parseCacheFromText(page, null);
         assertNotNull(result);
         assertTrue(result.isEmpty());
         assertEquals(StatusCode.UNPUBLISHED_CACHE, result.getError());
+    }
+
+    public void testPublishedCacheWithUnpublishedInDescription1() {
+        assertPublishedCache(R.raw.gc430fm_published, "Cache is Unpublished");
+    }
+
+    public void testPublishedCacheWithUnpublishedInDescription2() {
+        assertPublishedCache(R.raw.gc431f2_published, "Needle in a Haystack");
+    }
+
+    private void assertPublishedCache(final int cachePage, final String cacheName) {
+        final String page = getFileContent(cachePage);
+        SearchResult result = GCParser.parseCacheFromText(page, null);
+        assertNotNull(result);
+        assertEquals(1, result.getCount());
+        cgCache cache = result.getFirstCacheFromResult(LoadFlags.LOAD_CACHE_OR_DB);
+        assertEquals(cacheName, cache.getName());
     }
 
     public void testOwnCache() {
@@ -43,7 +72,7 @@ public class GCParserTest extends AbstractResourceInstrumentationTestCase {
     }
 
     private static cgCache createCache(int index) {
-        final MockedCache mockedCache = RegExPerformanceTest.MOCKED_CACHES[index];
+        final MockedCache mockedCache = RegExPerformanceTest.MOCKED_CACHES.get(index);
         // to get the same results we have to use the date format used when the mocked data was created
         String oldCustomDate = Settings.getGcCustomDate();
 
@@ -119,6 +148,25 @@ public class GCParserTest extends AbstractResourceInstrumentationTestCase {
                 new Geopoint("N51 21.733", "E07 02.378"),
                 new Geopoint("N51 21.544", "E07 02.566") },
                 "Station3: N51 21.444 / E07 02.600\r\nStation4: N51 21.789 / E07 02.800\r\nStation5: N51 21.667 / E07 02.800\r\nStation6: N51 21.444 / E07 02.706\r\nStation7: N51 21.321 / E07 02.700\r\nStation8: N51 21.123 / E07 02.477\r\nStation9: N51 21.734 / E07 02.500\r\nStation10: N51 21.733 / E07 02.378\r\nFinal: N51 21.544 / E07 02.566");
+    }
+
+    @MediumTest
+    public static void testEditModifiedCoordinates() {
+        cgCache cache = new cgCache();
+        cache.setGeocode("GC2ZN4G");
+        // upload coordinates
+        GCParser.editModifiedCoordinates(cache, new Geopoint("N51 21.544", "E07 02.566"));
+        cache.drop(new Handler());
+        String page = GCParser.requestHtmlPage(cache.getGeocode(), null, "n", "0");
+        cgCache cache2 = GCParser.parseCacheFromText(page, null).getFirstCacheFromResult(LoadFlags.LOAD_CACHE_ONLY);
+        assertTrue(cache2.hasUserModifiedCoords());
+        assertEquals(new Geopoint("N51 21.544", "E07 02.566"), cache2.getCoords());
+        // delete coordinates
+        GCParser.deleteModifiedCoordinates(cache2);
+        cache2.drop(new Handler());
+        String page2 = GCParser.requestHtmlPage(cache.getGeocode(), null, "n", "0");
+        cgCache cache3 = GCParser.parseCacheFromText(page2, null).getFirstCacheFromResult(LoadFlags.LOAD_CACHE_ONLY);
+        assertFalse(cache3.hasUserModifiedCoords());
     }
 
     private static void assertWaypointsFromNote(final cgCache cache, Geopoint[] expected, String note) {

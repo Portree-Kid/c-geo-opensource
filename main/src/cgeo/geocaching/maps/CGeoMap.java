@@ -227,7 +227,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                     }
 
                     countVisibleCaches();
-                    if (caches != null && caches.size() > 0 && !mapTitle.contains("[")) {
+                    if (caches != null && !caches.isEmpty() && !mapTitle.contains("[")) {
                         title.append(" [").append(cachesCnt);
                         if (cachesCnt != caches.size()) {
                             title.append('/').append(caches.size());
@@ -339,7 +339,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
         final List<cgCache> protectedCaches = caches.getAsList();
 
         int count = 0;
-        if (protectedCaches.size() > 0) {
+        if (!protectedCaches.isEmpty()) {
             final Viewport viewport = mapView.getViewport();
 
             for (final cgCache cache : protectedCaches) {
@@ -578,9 +578,8 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
             }
         }
 
-        MenuItem item;
         try {
-            item = menu.findItem(MENU_TRAIL_MODE); // show trail
+            MenuItem item = menu.findItem(MENU_TRAIL_MODE);
             if (Settings.isMapTrail()) {
                 item.setTitle(res.getString(R.string.map_trail_hide));
             } else {
@@ -751,9 +750,9 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
             currentTheme = currentThemeFile.getName();
         }
 
-        int currentItem = 0;
         List<String> names = new ArrayList<String>();
         names.add(res.getString(R.string.map_theme_builtin));
+        int currentItem = 0;
         for (File file : themeFiles) {
             if (currentTheme.equalsIgnoreCase(file.getName())) {
                 currentItem = names.size();
@@ -767,7 +766,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
 
         builder.setTitle(R.string.map_theme_select);
 
-        builder.setSingleChoiceItems(names.toArray(new String[] {}), selectedItem,
+        builder.setSingleChoiceItems(names.toArray(new String[names.size()]), selectedItem,
                 new DialogInterface.OnClickListener() {
 
                     @Override
@@ -791,7 +790,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
     }
 
     /**
-     * @return a Set of geocodes corresponding to the caches that are shown on screen.
+     * @return a non-null Set of geocodes corresponding to the caches that are shown on screen.
      */
     private Set<String> getGeocodesForCachesInViewport() {
         final Set<String> geocodes = new HashSet<String>();
@@ -1119,14 +1118,10 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
 
                 SearchResult searchResult;
                 if (mapMode == MapMode.LIVE) {
-                    if (isLiveEnabled) {
-                        searchResult = new SearchResult();
-                    } else {
-                        searchResult = new SearchResult(cgData.loadStoredInViewport(viewport, Settings.getCacheType()));
-                    }
+                    searchResult = isLiveEnabled ? new SearchResult() : new SearchResult(cgData.loadStoredInViewport(viewport, Settings.getCacheType()));
                 } else {
                     // map started from another activity
-                    searchResult = new SearchResult(searchIntent);
+                    searchResult = searchIntent != null ? new SearchResult(searchIntent) : new SearchResult();
                     if (geocodeIntent != null) {
                         searchResult.addGeocode(geocodeIntent);
                     }
@@ -1341,7 +1336,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
 
         final protected Viewport viewport;
 
-        public DoRunnable(final Viewport viewport) {
+        protected DoRunnable(final Viewport viewport) {
             this.viewport = viewport;
         }
 

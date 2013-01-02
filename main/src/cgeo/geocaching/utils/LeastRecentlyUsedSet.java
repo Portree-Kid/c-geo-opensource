@@ -2,6 +2,7 @@ package cgeo.geocaching.utils;
 
 import java.util.AbstractSet;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -102,6 +103,18 @@ public class LeastRecentlyUsedSet<E> extends AbstractSet<E>
     }
 
     /**
+     * Synchronized removal of all elements contained in another collection.
+     */
+    @Override
+    public synchronized boolean removeAll(final Collection<?> c) {
+        boolean changed = false;
+        for (final Object o: c) {
+            changed |= remove(o);
+        }
+        return changed;
+    }
+
+    /**
      * Synchronized clearing of the set
      * Copy of the HashSet code if clear()
      * 
@@ -120,7 +133,7 @@ public class LeastRecentlyUsedSet<E> extends AbstractSet<E>
      */
     @Override
     @SuppressWarnings("unchecked")
-    public Object clone() {
+    public Object clone() throws CloneNotSupportedException {
         try {
             synchronized (this) {
                 final LeastRecentlyUsedSet<E> newSet = (LeastRecentlyUsedSet<E>) super.clone();

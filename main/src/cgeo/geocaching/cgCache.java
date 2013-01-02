@@ -310,12 +310,21 @@ public class cgCache implements ICache, IWaypoint {
         if (logs.isEmpty()) { // keep last known logs if none
             logs.set(other.logs);
         }
-        if (logCounts.size() == 0) {
+        if (logCounts.isEmpty()) {
             logCounts = other.logCounts;
         }
-        if (!userModifiedCoords) {
-            userModifiedCoords = other.userModifiedCoords;
+
+        // if cache has ORIGINAL type waypoint ... it is considered that it has modified coordinates, otherwise not
+        userModifiedCoords = false;
+        if (waypoints != null) {
+            for (cgWaypoint wpt : waypoints) {
+                if (wpt.getWaypointType() == WaypointType.ORIGINAL) {
+                    userModifiedCoords = true;
+                    break;
+                }
+            }
         }
+
         if (!reliableLatLon) {
             reliableLatLon = other.reliableLatLon;
         }
@@ -335,7 +344,8 @@ public class cgCache implements ICache, IWaypoint {
     /**
      * Compare two caches quickly. For map and list fields only the references are compared !
      *
-     * @param other the other cache to compare this one to
+     * @param other
+     *            the other cache to compare this one to
      * @return true if both caches have the same content
      */
     private boolean isEqualTo(final cgCache other) {
@@ -531,6 +541,10 @@ public class cgCache implements ICache, IWaypoint {
         return getConnector().supportsLogging();
     }
 
+    public boolean supportsOwnCoordinates() {
+        return getConnector().supportsOwnCoordinates();
+    }
+
     @Override
     public float getDifficulty() {
         return difficulty;
@@ -692,7 +706,6 @@ public class cgCache implements ICache, IWaypoint {
     public void setFavorite(boolean favourite) {
         this.favorite = favourite;
     }
-
 
     @Override
     public boolean isWatchlist() {
@@ -1184,12 +1197,12 @@ public class cgCache implements ICache, IWaypoint {
     }
 
     public void setUserModifiedCoords(boolean coordsChanged) {
-        this.userModifiedCoords = coordsChanged;
+        userModifiedCoords = coordsChanged;
     }
 
     /**
      * Duplicate a waypoint.
-     * 
+     *
      * @param original
      *            the waypoint to duplicate
      * @return <code>true</code> if the waypoint was duplicated, <code>false</code> otherwise (invalid index)
@@ -1235,6 +1248,20 @@ public class cgCache implements ICache, IWaypoint {
     }
 
     /**
+     * deletes any waypoint
+     *
+     * @param waypoint
+     */
+
+    public void deleteWaypointForce(cgWaypoint waypoint) {
+        final int index = getWaypointIndex(waypoint);
+        waypoints.remove(index);
+        cgData.deleteWaypoint(waypoint.getId());
+        cgData.removeCache(geocode, EnumSet.of(RemoveFlag.REMOVE_CACHE));
+        resetFinalDefined();
+    }
+
+    /**
      * Find index of given <code>waypoint</code> in cache's <code>waypoints</code> list
      *
      * @param waypoint
@@ -1254,7 +1281,8 @@ public class cgCache implements ICache, IWaypoint {
     /**
      * Retrieve a given waypoint.
      *
-     * @param index the index of the waypoint
+     * @param index
+     *            the index of the waypoint
      * @return waypoint or <code>null</code> if index is out of range
      */
     public cgWaypoint getWaypoint(final int index) {
@@ -1264,7 +1292,8 @@ public class cgCache implements ICache, IWaypoint {
     /**
      * Lookup a waypoint by its id.
      *
-     * @param id the id of the waypoint to look for
+     * @param id
+     *            the id of the waypoint to look for
      * @return waypoint or <code>null</code>
      */
     public cgWaypoint getWaypointById(final int id) {
@@ -1373,43 +1402,43 @@ public class cgCache implements ICache, IWaypoint {
 
     public void checkFields() {
         if (StringUtils.isBlank(getGeocode())) {
-            Log.e("geo code not parsed correctly");
+            Log.w("geo code not parsed correctly for " + geocode);
         }
         if (StringUtils.isBlank(getName())) {
-            Log.e("name not parsed correctly");
+            Log.w("name not parsed correctly for " + geocode);
         }
         if (StringUtils.isBlank(getGuid())) {
-            Log.e("guid not parsed correctly");
+            Log.w("guid not parsed correctly for " + geocode);
         }
         if (getTerrain() == 0.0) {
-            Log.e("terrain not parsed correctly");
+            Log.w("terrain not parsed correctly for " + geocode);
         }
         if (getDifficulty() == 0.0) {
-            Log.e("difficulty not parsed correctly");
+            Log.w("difficulty not parsed correctly for " + geocode);
         }
         if (StringUtils.isBlank(getOwnerDisplayName())) {
-            Log.e("owner display name not parsed correctly");
+            Log.w("owner display name not parsed correctly for " + geocode);
         }
         if (StringUtils.isBlank(getOwnerUserId())) {
-            Log.e("owner user id real not parsed correctly");
+            Log.w("owner user id real not parsed correctly for " + geocode);
         }
         if (getHiddenDate() == null) {
-            Log.e("hidden not parsed correctly");
+            Log.w("hidden not parsed correctly for " + geocode);
         }
         if (getFavoritePoints() < 0) {
-            Log.e("favoriteCount not parsed correctly");
+            Log.w("favoriteCount not parsed correctly for " + geocode);
         }
         if (getSize() == null) {
-            Log.e("size not parsed correctly");
+            Log.w("size not parsed correctly for " + geocode);
         }
         if (getType() == null || getType() == CacheType.UNKNOWN) {
-            Log.e("type not parsed correctly");
+            Log.w("type not parsed correctly for " + geocode);
         }
         if (getCoords() == null) {
-            Log.e("coordinates not parsed correctly");
+            Log.w("coordinates not parsed correctly for " + geocode);
         }
         if (StringUtils.isBlank(getLocation())) {
-            Log.e("location not parsed correctly");
+            Log.w("location not parsed correctly for " + geocode);
         }
     }
 

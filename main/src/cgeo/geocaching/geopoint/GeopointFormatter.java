@@ -10,7 +10,7 @@ public class GeopointFormatter
     /**
      * Predefined formats.
      */
-    public static enum Format {
+    public enum Format {
         /** Example: "10,123456 -0,123456" */
         LAT_LON_DECDEGREE,
 
@@ -96,10 +96,9 @@ public class GeopointFormatter
 
             case LON_DECMINUTE_RAW:
                 return String.format(Locale.getDefault(), "%c %03d %06.3f", gp.getLonDir(), gp.getLonDeg(), gp.getLonMinRaw());
+            default:
+                throw new IllegalArgumentException();
         }
-
-        // Keep the compiler happy even though it cannot happen
-        return null;
     }
 
 }

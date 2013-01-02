@@ -30,6 +30,7 @@ import cgeo.geocaching.sorting.VisitComparator;
 import cgeo.geocaching.ui.CacheListAdapter;
 import cgeo.geocaching.ui.LoggingUI;
 import cgeo.geocaching.ui.WeakReferenceHandler;
+import cgeo.geocaching.utils.DateUtils;
 import cgeo.geocaching.utils.GeoDirHandler;
 import cgeo.geocaching.utils.Log;
 import cgeo.geocaching.utils.RunnableWithArgument;
@@ -62,6 +63,7 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -100,6 +102,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
     private static final int MENU_NAVIGATION = 69;
     private static final int MENU_STORE_CACHE = 73;
     private static final int MENU_FILTER = 74;
+    private static final int MENU_DELETE_EVENTS = 75;
 
     private static final int MSG_DONE = -1;
     private static final int MSG_RESTART_GEO_AND_DIR = -2;
@@ -126,11 +129,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
 
         @Override
         public void updateGeoData(final IGeoData geo) {
-            if (adapter == null) {
-                return;
-            }
-
-            if (geo.getCoords() != null) {
+           if (geo.getCoords() != null) {
                 adapter.setActualCoordinates(geo.getCoords());
             }
             if (!Settings.isUseCompass() || geo.getSpeed() > 5) { // use GPS when speed is higher than 18 km/h
@@ -140,7 +139,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
 
         @Override
         public void updateDirection(final float direction) {
-            if (adapter == null || !Settings.isLiveList()) {
+            if (!Settings.isLiveList()) {
                 return;
             }
 
@@ -169,7 +168,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
             showFooterMoreCaches();
 
             if (search != null && search.getError() == StatusCode.UNAPPROVED_LICENSE) {
-                AlertDialog.Builder dialog = new AlertDialog.Builder(cgeocaches.this);
+                AlertDialog.Builder dialog = new AlertDialog.Builder(this);
                 dialog.setTitle(res.getString(R.string.license));
                 dialog.setMessage(res.getString(R.string.err_license));
                 dialog.setCancelable(true);
@@ -221,9 +220,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
             Log.e("cgeocaches.loadCachesHandler.2: " + e2.toString());
         }
 
-        if (adapter != null) {
-            adapter.setSelectMode(false);
-        }
+        adapter.setSelectMode(false);
     }
 
     private Handler loadCachesHandler = new LoadCachesHandler(this);
@@ -249,12 +246,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         @Override
         public void handleMessage(Message msg) {
             try {
-                if (search != null) {
-                    replaceCacheListFromSearch();
-                    if (adapter != null) {
-                        adapter.reFilter();
-                    }
-                }
+                replaceCacheListFromSearch();
                 setAdapter();
 
                 updateTitle();
@@ -281,22 +273,30 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
             hideLoading();
             showProgress(false);
 
-            if (adapter != null) {
-                adapter.setSelectMode(false);
-            }
+            adapter.setSelectMode(false);
         }
     };
-    private Set<cgCache> cachesFromSearchResult;
 
     /**
-     * Loads the caches and fills the cachelist
+     * Loads the caches and fills the cachelist according to {@link #search} content.
+     *
+     * If {@link #search} is <code>null</code>, this does nothing.
      */
 
     private void replaceCacheListFromSearch() {
-        if (search!=null) {
-            cachesFromSearchResult = search.getCachesFromSearchResult(LoadFlags.LOAD_CACHE_OR_DB);
+        if (search != null) {
+            final Set<cgCache> cachesFromSearchResult = search.getCachesFromSearchResult(LoadFlags.LOAD_CACHE_OR_DB);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    cacheList.clear();
+                    cacheList.addAll((Set<cgCache>) cachesFromSearchResult);
+                    adapter.reFilter();
+                    updateTitle();
+                    showFooterMoreCaches();
+                }
+            });
         }
-        refreshCacheListHandler.sendEmptyMessage(0);
     }
 
     protected void updateTitle() {
@@ -324,9 +324,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
             if (msg.what > -1) {
                 cacheList.get(msg.what).setStatusChecked(false);
 
-                if (adapter != null) {
-                    adapter.notifyDataSetChanged();
-                }
+                adapter.notifyDataSetChanged();
 
                 int secondsElapsed = (int) ((System.currentTimeMillis() - detailProgressTime) / 1000);
                 int minutesRemaining = ((detailTotal - detailProgress) * secondsElapsed / ((detailProgress > 0) ? detailProgress : 1) / 60);
@@ -370,9 +368,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         public void handleMessage(Message msg) {
             setAdapter();
 
-            if (adapter != null) {
-                adapter.notifyDataSetChanged();
-            }
+            adapter.notifyDataSetChanged();
 
             if (msg.what == 0) { //no caches
                 progress.setMessage(res.getString(R.string.web_import_waiting));
@@ -394,9 +390,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
                     threadWeb.kill();
                 }
             } else {
-                if (adapter != null) {
-                    adapter.setSelectMode(false);
-                }
+                adapter.setSelectMode(false);
 
                 replaceCacheListFromSearch();
 
@@ -409,9 +403,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         @Override
         public void handleMessage(Message msg) {
             if (msg.what != MSG_CANCEL) {
-                if (adapter != null) {
-                    adapter.setSelectMode(false);
-                }
+                adapter.setSelectMode(false);
 
                 refreshCurrentList();
 
@@ -430,9 +422,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
             if (msg.what > -1) {
                 progress.setProgress(detailProgress);
             } else {
-                if (adapter != null) {
-                    adapter.setSelectMode(false);
-                }
+                adapter.setSelectMode(false);
 
                 // reload history list
                 (new LoadByHistoryThread()).start();
@@ -647,10 +637,8 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
 
         startGeoAndDir();
 
-        if (adapter != null) {
-            adapter.setSelectMode(false);
-            setAdapterCurrentCoordinates(true);
-        }
+        adapter.setSelectMode(false);
+        setAdapterCurrentCoordinates(true);
 
         if (loadCachesHandler != null && search != null) {
             replaceCacheListFromSearch();
@@ -678,9 +666,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
 
     @Override
     public void onDestroy() {
-        if (adapter != null) {
-            adapter = null;
-        }
+        adapter = null;
 
         super.onDestroy();
     }
@@ -708,6 +694,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
             subMenu.add(0, MENU_DROP_CACHES_AND_LIST, 0, res.getString(R.string.caches_drop_all_and_list));
             subMenu.add(0, MENU_REFRESH_STORED, 0, res.getString(R.string.cache_offline_refresh)); // download details for all caches
             subMenu.add(0, MENU_MOVE_TO_LIST, 0, res.getString(R.string.cache_menu_move_list));
+            subMenu.add(0, MENU_DELETE_EVENTS, 0, res.getString(R.string.caches_delete_events));
 
             //TODO: add submenu/AlertDialog and use R.string.gpx_import_title
             subMenu.add(0, MENU_IMPORT_GPX, 0, res.getString(R.string.gpx_import_title));
@@ -750,7 +737,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         super.onPrepareOptionsMenu(menu);
 
         try {
-            if (adapter != null && adapter.isSelectMode()) {
+            if (adapter.isSelectMode()) {
                 menu.findItem(MENU_SWITCH_SELECT_MODE).setTitle(res.getString(R.string.caches_select_mode_exit))
                         .setIcon(R.drawable.ic_menu_clear_playlist);
                 menu.findItem(MENU_INVERT_SELECTION).setVisible(true);
@@ -770,6 +757,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
             setVisible(menu, MENU_REFRESH_STORED, !isEmpty && (isConcrete || type != CacheListType.OFFLINE));
             setVisible(menu, MENU_DROP_CACHES, !isEmpty);
             setVisible(menu, MENU_DROP_CACHES_AND_LIST, isConcrete && !isEmpty);
+            setVisible(menu, MENU_DELETE_EVENTS, isConcrete && !isEmpty && containsEvents());
             setVisible(menu, MENU_MOVE_TO_LIST, !isEmpty);
             setVisible(menu, MENU_EXPORT, !isEmpty);
             setVisible(menu, MENU_REMOVE_FROM_HISTORY, !isEmpty);
@@ -820,6 +808,15 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         return true;
     }
 
+    private boolean containsEvents() {
+        for (cgCache cache : adapter.getCheckedOrAllCaches()) {
+            if (cache.isEventCache()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void setMenuItemLabel(final Menu menu, final int menuId, final int resIdSelection, final int resId) {
         final MenuItem menuItem = menu.findItem(menuId);
         if (menuItem == null) {
@@ -838,9 +835,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         int itemId = item.getItemId();
         switch (itemId) {
             case MENU_SWITCH_SELECT_MODE:
-                if (adapter != null) {
-                    adapter.switchSelectMode();
-                }
+                adapter.switchSelectMode();
                 invalidateOptionsMenuCompatible();
                 return true;
             case MENU_REFRESH_STORED:
@@ -871,9 +866,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
                 renameList();
                 return false;
             case MENU_INVERT_SELECTION:
-                if (adapter != null) {
-                    adapter.invertSelection();
-                }
+                adapter.invertSelection();
                 invalidateOptionsMenuCompatible();
                 return false;
             case MENU_SWITCH_LIST:
@@ -905,9 +898,27 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
                 moveCachesToOtherList();
                 invalidateOptionsMenuCompatible();
                 return true;
+            case MENU_DELETE_EVENTS:
+                deletePastEvents();
+                invalidateOptionsMenuCompatible();
+                return true;
+            default:
+                return CacheListAppFactory.onMenuItemSelected(item, cacheList, this, search);
         }
+    }
 
-        return CacheListAppFactory.onMenuItemSelected(item, cacheList, this, search);
+    public void deletePastEvents() {
+        progress.show(this, null, res.getString(R.string.caches_drop_progress), true, dropDetailsHandler.obtainMessage(MSG_CANCEL));
+        final List<cgCache> deletion = new ArrayList<cgCache>();
+        for (cgCache cache : adapter.getCheckedOrAllCaches()) {
+            if (cache.isEventCache()) {
+                final Date eventDate = cache.getHiddenDate();
+                if (DateUtils.daysSince(eventDate.getTime()) > 0) {
+                    deletion.add(cache);
+                }
+            }
+        }
+        new DropDetailsThread(dropDetailsHandler, deletion).start();
     }
 
     /**
@@ -923,27 +934,19 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
                 }
                 else {
                     // clear filter
-                    if (adapter != null) {
-                        setFilter(null);
-                    }
+                    setFilter(null);
                 }
             }
         });
     }
 
     private void setComparator(final CacheComparator comparator) {
-        if (adapter != null) {
-            adapter.setComparator(comparator);
-        }
+        adapter.setComparator(comparator);
     }
 
     @Override
     public void onCreateContextMenu(final ContextMenu menu, final View view, final ContextMenu.ContextMenuInfo info) {
         super.onCreateContextMenu(menu, view, info);
-
-        if (adapter == null) {
-            return;
-        }
 
         AdapterContextMenuInfo adapterInfo = null;
         try {
@@ -1087,24 +1090,19 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
     }
 
     private boolean setFilter(IFilter filter) {
-        if (adapter != null) {
-            adapter.setFilter(filter);
-            prepareFilterBar();
-            updateTitle();
-            invalidateOptionsMenuCompatible();
-            return true;
-        }
-        return false;
+        adapter.setFilter(filter);
+        prepareFilterBar();
+        updateTitle();
+        invalidateOptionsMenuCompatible();
+        return true;
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (adapter != null) {
-                if (adapter.isSelectMode()) {
-                    adapter.setSelectMode(false);
-                    return true;
-                }
+            if (adapter.isSelectMode()) {
+                adapter.setSelectMode(false);
+                return true;
             }
         }
         return super.onKeyDown(keyCode, event);
@@ -1264,7 +1262,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         dialog.setCancelable(true);
         dialog.setTitle(res.getString(R.string.caches_drop_stored));
 
-        if (adapter != null && adapter.getCheckedCount() > 0) {
+        if (adapter.getCheckedCount() > 0) {
             dialog.setMessage(res.getString(R.string.caches_drop_selected_ask));
         } else {
             dialog.setMessage(res.getString(R.string.caches_drop_all_ask));
@@ -1294,7 +1292,7 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
 
     public void dropSelected() {
         progress.show(this, null, res.getString(R.string.caches_drop_progress), true, dropDetailsHandler.obtainMessage(MSG_CANCEL));
-        new DropDetailsThread(dropDetailsHandler).start();
+        new DropDetailsThread(dropDetailsHandler, adapter.getCheckedOrAllCaches()).start();
     }
 
     private class LoadByOfflineThread extends Thread {
@@ -1526,13 +1524,13 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
 
         @Override
         public void run() {
-            int ret = MSG_DONE;
 
             removeGeoAndDir();
 
             int delay = -1;
             int times = 0;
 
+            int ret = MSG_DONE;
             while (!needToStop && times < 3 * 60 / 5) // maximum: 3 minutes, every 5 seconds
             {
                 //download new code
@@ -1598,9 +1596,9 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         final private Handler handler;
         final private List<cgCache> selected;
 
-        public DropDetailsThread(Handler handlerIn) {
+        public DropDetailsThread(Handler handlerIn, List<cgCache> selectedIn) {
             handler = handlerIn;
-            selected = adapter.getCheckedOrAllCaches();
+            selected = selectedIn;
         }
 
         @Override
@@ -1723,22 +1721,6 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         }
     }
 
-    /**
-     * Handler to refresh the current list of caches. This list is shared with the Adapter and therefore must be updated
-     * in the UI-Thread
-     */
-
-    private Handler refreshCacheListHandler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            cacheList.clear();
-            if (cachesFromSearchResult != null) {
-                cacheList.addAll(cachesFromSearchResult);
-            }
-        }
-    };
-
-
     private void renameList() {
         new StoredList.UserInterface(this).promptForListRename(listId, new Runnable() {
 
@@ -1806,13 +1788,11 @@ public class cgeocaches extends AbstractListActivity implements FilteredActivity
         SearchResult searchToUse = search;
 
         // apply filter settings (if there's a filter)
-        if (adapter != null) {
-            Set<String> geocodes = new HashSet<String>();
-            for (cgCache cache : adapter.getFilteredList()) {
-                geocodes.add(cache.getGeocode());
-            }
-            searchToUse = new SearchResult(geocodes);
+        Set<String> geocodes = new HashSet<String>();
+        for (cgCache cache : adapter.getFilteredList()) {
+            geocodes.add(cache.getGeocode());
         }
+        searchToUse = new SearchResult(geocodes);
 
         int count = searchToUse.getCount();
         String mapTitle = title;

@@ -124,7 +124,7 @@ public class GPXImporter {
         final Handler importStepHandler;
         final CancellableHandler progressHandler;
 
-        public ImportThread(int listId, Handler importStepHandler, CancellableHandler progressHandler) {
+        protected ImportThread(int listId, Handler importStepHandler, CancellableHandler progressHandler) {
             this.listId = listId;
             this.importStepHandler = importStepHandler;
             this.progressHandler = progressHandler;
@@ -132,10 +132,9 @@ public class GPXImporter {
 
         @Override
         public void run() {
-            final Collection<cgCache> caches;
             try {
                 importStepHandler.sendMessage(importStepHandler.obtainMessage(IMPORT_STEP_START));
-                caches = doImport();
+                final Collection<cgCache> caches = doImport();
                 Log.i("Imported successfully " + caches.size() + " caches.");
 
                 final SearchResult search = new SearchResult();
@@ -205,7 +204,7 @@ public class GPXImporter {
 
     static abstract class ImportGpxThread extends ImportThread {
 
-        public ImportGpxThread(int listId, Handler importStepHandler, CancellableHandler progressHandler) {
+        protected ImportGpxThread(int listId, Handler importStepHandler, CancellableHandler progressHandler) {
             super(listId, importStepHandler, progressHandler);
         }
 
@@ -275,7 +274,7 @@ public class GPXImporter {
 
     static abstract class ImportGpxZipThread extends ImportGpxThread {
 
-        public ImportGpxZipThread(int listId, Handler importStepHandler, CancellableHandler progressHandler) {
+        protected ImportGpxZipThread(int listId, Handler importStepHandler, CancellableHandler progressHandler) {
             super(listId, importStepHandler, progressHandler);
         }
 

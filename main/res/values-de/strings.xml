@@ -75,6 +75,8 @@
   <string name="log_needs_archived">Sollte archiviert werden</string>
   <string name="log_discovered">Gesehen</string>
   <string name="log_reviewer">Review(er)-Anmerkung</string>
+  <string name="log_retractlisting">Listing zurückgezogen</string>
+  <string name="log_marked_missing">Als verloren gemeldet</string>
   <string name="log_tb_nothing">Keine Aktion</string>
   <string name="log_tb_visit">Besucht</string>
   <string name="log_tb_drop">Ablegen</string>
@@ -286,6 +288,7 @@
   <string name="caches_drop_stored">Gespeicherte löschen</string>
   <string name="caches_drop_progress">Entferne Caches…</string>
   <string name="caches_drop_all_and_list">Alle und Liste löschen</string>
+  <string name="caches_delete_events">Vergangene Events löschen</string>
   <string name="caches_refresh_selected">Ausgewählte aktualisieren</string>
   <string name="caches_refresh_all">Alle aktualisieren</string>
   <string name="caches_move_selected">Ausgewählte verschieben</string>
@@ -533,6 +536,7 @@
   <string name="cache_menu_navigate">Navigieren</string>
   <string name="cache_menu_navigation_drive">Navigation (Fahren)</string>
   <string name="cache_menu_navigation_walk">Navigation (Gehen)</string>
+  <string name="cache_menu_maps_directions">Google Maps Route</string>
   <string name="cache_menu_radar">Radar</string>
   <string name="cache_menu_map">Karte</string>
   <string name="cache_menu_map_static">Statische Karten</string>
@@ -637,7 +641,7 @@
 
   <!-- waypoint -->
   <string name="waypoint">Wegpunkt</string>
-  <string name="waypoint_cache_coordinates">Cache Koordinaten</string>
+  <string name="waypoint_cache_coordinates">Cache-Koordinaten</string>
   <string name="waypoint_custom">Benutzerdefiniert</string>
   <string name="waypoint_my_coordinates">Meine Koordinaten</string>
   <string name="waypoint_bearing">Richtung in °</string>
@@ -650,6 +654,21 @@
   <string name="waypoint_note">Notiz</string>
   <string name="waypoint_save">Speichern</string>
   <string name="waypoint_loading">Lade Wegpunkt…</string>
+  <string name="waypoint_set_as_cache_coords">Als Cache-Koordinaten lokal setzen</string>
+  <string name="waypoint_reset_cache_coords">Zurücksetzen</string>
+  <string name="waypoint_reset_cache_coords_on_website">Cache-Koordinaten auf Webseite zurücksetzen</string>
+  <string name="waypoint_coordinates_has_been_reset_on_website">Koordinaten auf Webseite zurückgesetzt</string>
+  <string name="waypoint_coordinates_being_reset_on_website">Koordinaten werden zurückgesetzt</string>
+  <string name="waypoint_reset_cache_coords_info">Rücksetz-Optionen</string>
+  <string name="waypoint_reset">Zurücksetzen</string>
+  <string name="waypoint_localy_reset_cache_coords">Koodinaten lokal zurücksetzen</string>
+  <string name="waypoint_modify_on_website">Als Cache-Koordinaten auf der Webseite setzen</string>
+  <string name="waypoint_coordinates_couldnt_be_modified_on_website">Cache-Koordinaten auf der Webseite konnten nicht zurückgesetzt werden</string>
+  <string name="waypoint_coordinates_upload_error">Fehler beim Hochladen der Koordinaten zur Webseite</string>
+  <string name="waypoint_coordinates_uploading_to_website">Setze %s auf der Webseite</string>
+  <string name="waypoint_coordinates_reseting_on_website">Setze Koordinaten auf der Webseite zurück</string>
+  <string name="waypoint_coordinates_has_been_modified_on_website">Koordinaten wurden auf der Webseite geändert: %s</string>
+  <string name="waypoint_coordinates_has_been_set_as_cache_coordinates">Koordinaten wurden lokal geändert: %s</string>
   <string name="waypoint_done">Fertig</string>
   <string name="waypoint_duplicate">Duplizieren</string>
   <string name="waypoint_copy_of">Kopie von</string>

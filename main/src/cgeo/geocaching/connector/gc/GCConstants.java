@@ -40,7 +40,7 @@ public final class GCConstants {
     public final static Pattern PATTERN_DIFFICULTY = Pattern.compile("<span id=\"ctl00_ContentBody_uxLegendScale\"[^>]*>[^<]*<img src=\"[^\"]*/images/stars/stars([0-9_]+)\\.gif\"");
     public final static Pattern PATTERN_TERRAIN = Pattern.compile("<span id=\"ctl00_ContentBody_Localize[\\d]+\"[^>]*>[^<]*<img src=\"[^\"]*/images/stars/stars([0-9_]+)\\.gif\"");
     public final static Pattern PATTERN_OWNER_USERID = Pattern.compile("<a id=\"ctl00_ContentBody_uxFindLinksHiddenByThisUser\" href=\"[^\"]*/seek/nearest\\.aspx\\?u=(.*?)\"");
-    public final static Pattern PATTERN_FOUND = Pattern.compile("<a id=\"ctl00_ContentBody_hlFoundItLog\"[^<]*<img src=\".*/images/stockholm/16x16/check\\.gif\"[^>]*>[^<]*</a>[^<]*</p>");
+    public final static Pattern PATTERN_FOUND = Pattern.compile("<a id=\"ctl00_ContentBody_hlFoundItLog\"[^<]*<img src=\"[^\"]+check\\.\\w+\"[^>]*>[^<]*</a>[^<]*</p>");
     public final static Pattern PATTERN_FOUND_ALTERNATIVE = Pattern.compile("<div class=\"StatusInformationWidget FavoriteWidget\"");
     public final static Pattern PATTERN_FOUND_DATE = Pattern.compile("You logged this as Found on ([^.]+?)\\.[^<]*</a>[^<]*</p>");
     public final static Pattern PATTERN_OWNER_DISPLAYNAME = Pattern.compile("<div id=\"ctl00_ContentBody_mcd1\">[^<]+<a href=\"[^\"]+\">([^<]+)</a></div>");
@@ -57,10 +57,10 @@ public final class GCConstants {
     public final static Pattern PATTERN_ATTRIBUTES = Pattern.compile("<h3 class=\"WidgetHeader\">.+?Attributes</h3>[^<]*<div class=\"WidgetBody\">((?:[^<]*<img src=\"[^\"]+\" alt=\"[^\"]+\"[^>]*>)+?)[^<]*<p");
     /** Two groups ! */
     public final static Pattern PATTERN_ATTRIBUTESINSIDE = Pattern.compile("[^<]*<img src=\"([^\"]+)\" alt=\"([^\"]+?)\"");
-    public final static Pattern PATTERN_SPOILER_IMAGE = Pattern.compile("<a href=\"(http://img\\.geocaching\\.com/cache/[^.]+\\.jpe?g)\"[^>]+><img[^>]+><span>([^<]+)</span></a>(?:<br />([^<]+)<br /><br />)?");
+    public final static Pattern PATTERN_SPOILER_IMAGE = Pattern.compile("<a href=\"(http://img\\.geocaching\\.com/cache/[^.]+\\.(jpg|jpeg|png|gif))\"[^>]+><img[^>]+><span>([^<]+)</span></a>(?:<br />([^<]+)<br /><br />)?");
     public final static Pattern PATTERN_INVENTORY = Pattern.compile("<span id=\"ctl00_ContentBody_uxTravelBugList_uxInventoryLabel\">\\W*Inventory[^<]*</span>[^<]*</h3>[^<]*<div class=\"WidgetBody\">([^<]*<ul>(([^<]*<li>[^<]*<a href=\"[^\"]+\"[^>]*>[^<]*<img src=\"[^\"]+\"[^>]*>[^<]*<span>[^<]+<\\/span>[^<]*<\\/a>[^<]*<\\/li>)+)[^<]*<\\/ul>)?");
     public final static Pattern PATTERN_INVENTORYINSIDE = Pattern.compile("[^<]*<li>[^<]*<a href=\"[a-z0-9\\-\\_\\.\\?\\/\\:\\@]*\\/track\\/details\\.aspx\\?guid=([0-9a-z\\-]+)[^\"]*\"[^>]*>[^<]*<img src=\"[^\"]+\"[^>]*>[^<]*<span>([^<]+)<\\/span>[^<]*<\\/a>[^<]*<\\/li>");
-    public final static Pattern PATTERN_WATCHLIST = Pattern.compile("icon_stop_watchlist.gif");
+    public final static Pattern PATTERN_WATCHLIST = Pattern.compile(Pattern.quote("watchlist.aspx") + ".{1,50}" + Pattern.quote("action=rem"));
 
     // Info box top-right
     public static final Pattern PATTERN_LOGIN_NAME = Pattern.compile("\"SignedInProfileLink\">([^<]+)</a>");
@@ -104,7 +104,7 @@ public final class GCConstants {
     public final static Pattern PATTERN_TRACKABLE_ICON = Pattern.compile("<img id=\"ctl00_ContentBody_BugTypeImage\" class=\"TravelBugHeaderIcon\" src=\"([^\"]+)\"[^>]*>");
     public final static Pattern PATTERN_TRACKABLE_TYPE = Pattern.compile("<img id=\"ctl00_ContentBody_BugTypeImage\" class=\"TravelBugHeaderIcon\" src=\"[^\"]+\" alt=\"([^\"]+)\"[^>]*>");
     public final static Pattern PATTERN_TRACKABLE_DISTANCE = Pattern.compile("<h4[^>]*\\W*Tracking History \\(([0-9.,]+(km|mi))[^\\)]*\\)");
-    public final static Pattern PATTERN_TRACKABLE_LOG = Pattern.compile("<tr class=\"Data BorderTop .+?src=\"/images/logtypes/([^.]+)\\.png[^>]+>&nbsp;([^<]+)</td>.+?guid.+?>([^<]+)</a>.+?(?:guid=([^\"]+)\">(<span[^>]+>)?([^<]+)</.+?)?<td colspan=\"4\">(.+?)(?:<ul.+?ul>)?\\s*</td>\\s*</tr>");
+    public final static Pattern PATTERN_TRACKABLE_LOG = Pattern.compile("<tr class=\"Data BorderTop .+?src=\"/images/logtypes/([^.]+)\\.png[^>]+>&nbsp;([^<]+)</td>.+?guid.+?>([^<]+)</a>.+?(?:guid=([^\"]+)\">(<span[^>]+>)?([^<]+)</.+?)?<td colspan=\"4\">\\s*<div>(.*?)</div>\\s*(?:<ul.+?ul>)?\\s*</td>\\s*</tr>");
     public final static Pattern PATTERN_TRACKABLE_LOG_IMAGES = Pattern.compile("<li><a href=\"([^\"]+)\".+?LogImgTitle.+?>([^<]+)</");
 
     /**
@@ -165,8 +165,9 @@ public final class GCConstants {
 
     public final static String STRING_PREMIUMONLY_2 = "Sorry, the owner of this listing has made it viewable to Premium Members only.";
     public final static String STRING_PREMIUMONLY_1 = "has chosen to make this cache listing visible to Premium Members only.";
-    public final static String STRING_UNPUBLISHED_OWNER = "Cache is Unpublished";
+    public final static String STRING_UNPUBLISHED_OWNER = "cache has not been published yet";
     public final static String STRING_UNPUBLISHED_OTHER = "you cannot view this cache listing until it has been published";
+    public final static String STRING_UNPUBLISHED_FROM_SEARCH = "UnpublishedCacheSearchWidget";
     public final static String STRING_UNKNOWN_ERROR = "An Error Has Occurred";
     public final static String STRING_DISABLED = "<li>This cache is temporarily unavailable.";
     public final static String STRING_ARCHIVED = "<li>This cache has been archived,";
@@ -186,7 +187,6 @@ public final class GCConstants {
      * see http://support.groundspeak.com/index.php?pg=kb.printer.friendly&id=1#p221
      */
     public static long gccodeToGCId(final String gccode) {
-        long gcid = 0;
         long base = GC_BASE31;
         String geocodeWO = gccode.substring(2).toUpperCase(Locale.US);
 
@@ -194,6 +194,7 @@ public final class GCConstants {
             base = GC_BASE16;
         }
 
+        long gcid = 0;
         for (int p = 0; p < geocodeWO.length(); p++) {
             gcid = base * gcid + SEQUENCE_GCID.indexOf(geocodeWO.charAt(p));
         }

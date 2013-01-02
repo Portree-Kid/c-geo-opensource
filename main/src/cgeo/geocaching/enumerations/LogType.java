@@ -26,9 +26,9 @@ public enum LogType {
     NEEDS_ARCHIVE(7, "7", "needs archived", R.string.log_needs_archived, R.drawable.mark_red),
     WILL_ATTEND(9, "9", "will attend", R.string.log_attend),
     ATTENDED(10, "10", "attended", R.string.log_attended, R.drawable.mark_green),
-    RETRIEVED_IT(13, "13", "retrieved it", R.string.log_retrieved, R.drawable.mark_green),
-    PLACED_IT(14, "14", "placed it", R.string.log_placed),
-    GRABBED_IT(19, "19", "grabbed it", R.string.log_grabbed, R.drawable.mark_green),
+    RETRIEVED_IT(13, "13", "retrieved it", R.string.log_retrieved, R.drawable.mark_green_more),
+    PLACED_IT(14, "14", "placed it", R.string.log_placed, R.drawable.mark_green_more),
+    GRABBED_IT(19, "19", "grabbed it", R.string.log_grabbed, R.drawable.mark_green_more),
     NEEDS_MAINTENANCE(45, "45", "needs maintenance", R.string.log_maintenance_needed, R.drawable.mark_red),
     OWNER_MAINTENANCE(46, "46", "owner maintenance", R.string.log_maintained, R.drawable.mark_green_more),
     UPDATE_COORDINATES(47, "47", "update coordinates", R.string.log_update),
@@ -40,6 +40,7 @@ public enum LogType {
     MOVE_COLLECTION(69, "69", "unused_collection", R.string.log_movecollection),
     MOVE_INVENTORY(70, "70", "unused_inventory", R.string.log_moveinventory),
     RETRACT(25, "25", "retract listing", R.string.log_retractlisting),
+    MARKED_MISSING(16, "16", "marked missing", R.string.log_marked_missing, R.drawable.mark_red),
     UNKNOWN(0, "unknown", "", R.string.err_unknown, R.drawable.mark_red); // LogType not init. yet
 
     public final int id;
@@ -48,7 +49,7 @@ public enum LogType {
     private final int stringId;
     public final int markerId;
 
-    private LogType(int id, String iconName, String type, int stringId, int markerId) {
+    LogType(int id, String iconName, String type, int stringId, int markerId) {
         this.id = id;
         this.iconName = iconName;
         this.type = type;
@@ -56,7 +57,7 @@ public enum LogType {
         this.markerId = markerId;
     }
 
-    private LogType(int id, String iconName, String type, int stringId) {
+    LogType(int id, String iconName, String type, int stringId) {
         this(id, iconName, type, stringId, R.drawable.mark_gray);
     }
 

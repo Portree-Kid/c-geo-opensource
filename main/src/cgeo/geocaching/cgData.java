@@ -77,7 +77,7 @@ public class cgData {
     private static int[] cacheColumnIndex;
     private static CacheCache cacheCache = new CacheCache();
     private static SQLiteDatabase database = null;
-    private static final int dbVersion = 64;
+    private static final int dbVersion = 65;
     public static final int customListIdOffset = 10;
     private static final String dbName = "data";
     private static final String dbTableCaches = "cg_caches";
@@ -372,6 +372,8 @@ public class cgData {
 
     private static class DbHelper extends SQLiteOpenHelper {
 
+        private static boolean firstRun = true;
+
         DbHelper(Context context) {
             super(context, databasePath().getPath(), null, dbVersion);
         }
@@ -458,7 +460,7 @@ public class cgData {
                         try {
                             db.execSQL(dbCreateLogImages);
                         } catch (Exception e) {
-                            Log.e("Failed to upgrade to ver. 54: " + e.toString());
+                            Log.e("Failed to upgrade to ver. 54", e);
 
                         }
                     }
@@ -467,7 +469,7 @@ public class cgData {
                         try {
                             db.execSQL("alter table " + dbTableCaches + " add column personal_note text");
                         } catch (Exception e) {
-                            Log.e("Failed to upgrade to ver. 55: " + e.toString());
+                            Log.e("Failed to upgrade to ver. 55", e);
                         }
                     }
 
@@ -479,7 +481,7 @@ public class cgData {
                                     "lower(attribute) where attribute like \"%_yes\" " +
                                     "or attribute like \"%_no\"");
                         } catch (Exception e) {
-                            Log.e("Failed to upgrade to ver. 56: " + e.toString());
+                            Log.e("Failed to upgrade to ver. 56", e);
                         }
                     }
 
@@ -494,7 +496,7 @@ public class cgData {
                             db.execSQL("drop index in_f");
                             createIndices(db);
                         } catch (Exception e) {
-                            Log.e("Failed to upgrade to ver. 57: " + e.toString());
+                            Log.e("Failed to upgrade to ver. 57", e);
                         }
                     }
 
@@ -612,7 +614,7 @@ public class cgData {
                             db.execSQL("alter table " + dbTableLogs + " add column friend integer");
                             db.execSQL("alter table " + dbTableCaches + " add column coordsChanged integer default 0");
                         } catch (Exception e) {
-                            Log.e("Failed to upgrade to ver. 61: " + e.toString());
+                            Log.e("Failed to upgrade to ver. 61", e);
 
                         }
                     }
@@ -623,7 +625,7 @@ public class cgData {
                             db.execSQL("alter table " + dbTableWaypoints + " add column own integer default 0");
                             db.execSQL("update " + dbTableWaypoints + " set own = 1 where type = 'own'");
                         } catch (Exception e) {
-                            Log.e("Failed to upgrade to ver. 62: " + e.toString());
+                            Log.e("Failed to upgrade to ver. 62", e);
 
                         }
                     }
@@ -631,7 +633,7 @@ public class cgData {
                         try {
                             removeDoubleUnderscoreMapFiles();
                         } catch (Exception e) {
-                            Log.e("Failed to upgrade to ver. 63: " + e.toString());
+                            Log.e("Failed to upgrade to ver. 63", e);
 
                         }
                     }
@@ -646,6 +648,15 @@ public class cgData {
                             Log.e("Failed to upgrade to ver. 64", e);
                         }
                     }
+
+                    if (oldVersion < 65) {
+                        try {
+                            // Set all waypoints where name is Original coordinates to type ORIGINAL
+                            db.execSQL("update " + dbTableWaypoints + " set type='original', own=0 where name='Original Coordinates'");
+                        } catch (Exception e) {
+                            Log.e("Failed to upgrade to ver. 65:", e);
+                        }
+                    }
                 }
 
                 db.setTransactionSuccessful();
@@ -654,6 +665,29 @@ public class cgData {
             }
 
             Log.i("Upgrade database from ver. " + oldVersion + " to ver. " + newVersion + ": completed");
+        }
+
+        @Override
+        public void onOpen(final SQLiteDatabase db) {
+            if (firstRun) {
+                sanityChecks(db);
+                firstRun = false;
+            }
+        }
+
+        /**
+         * Execute sanity checks that should be performed once per application after the database has been
+         * opened.
+         *
+         * @param db the database to perform sanity checks against
+         */
+        private static void sanityChecks(final SQLiteDatabase db) {
+            // Check that the history of searches is well formed as some dates seem to be missing according
+            // to NPE traces.
+            final int staleHistorySearches = db.delete(dbTableSearchDestionationHistory, "date is null", null);
+            if (staleHistorySearches > 0) {
+                Log.w(String.format("cgData.dbHelper.onOpen: removed %d bad search history entries", staleHistorySearches));
+            }
         }
 
         /**
@@ -668,10 +702,12 @@ public class cgData {
                     return filename.startsWith("map_") && filename.contains("__");
                 }
             };
-            for (File dir : geocodeDirs) {
-                File[] wrongFiles = dir.listFiles(filter);
-                for (File wrongFile : wrongFiles) {
-                    wrongFile.delete();
+            for (final File dir : geocodeDirs) {
+                final File[] wrongFiles = dir.listFiles(filter);
+                if (wrongFiles != null) {
+                    for (final File wrongFile : wrongFiles) {
+                        wrongFile.delete();
+                    }
                 }
             }
         }
@@ -755,11 +791,10 @@ public class cgData {
                     "100");
 
             if (cursor != null) {
-                int index;
 
                 if (cursor.getCount() > 0) {
                     cursor.moveToFirst();
-                    index = cursor.getColumnIndex("geocode");
+                    int index = cursor.getColumnIndex("geocode");
 
                     do {
                         list.add(cursor.getString(index));
@@ -770,7 +805,7 @@ public class cgData {
                 }
             }
         } catch (Exception e) {
-            Log.e("cgData.allDetailedThere: " + e.toString());
+            Log.e("cgData.allDetailedThere", e);
         }
 
         if (cursor != null) {
@@ -816,13 +851,12 @@ public class cgData {
             }
 
             if (cursor != null) {
-                int index;
                 cnt = cursor.getCount();
 
                 if (cnt > 0) {
                     cursor.moveToFirst();
 
-                    index = cursor.getColumnIndex("updated");
+                    int index = cursor.getColumnIndex("updated");
                     dataUpdated = cursor.getLong(index);
                     index = cursor.getColumnIndex("detailedupdate");
                     dataDetailedUpdate = cursor.getLong(index);
@@ -831,7 +865,7 @@ public class cgData {
                 }
             }
         } catch (Exception e) {
-            Log.e("cgData.isThere: " + e.toString());
+            Log.e("cgData.isThere", e);
         }
 
         if (cursor != null) {
@@ -1024,12 +1058,12 @@ public class cgData {
         values.put("coordsChanged", cache.hasUserModifiedCoords() ? 1 : 0);
         values.put("finalDefined", cache.hasFinalDefined() ? 1 : 0);
 
-        boolean result = false;
         init();
 
         //try to update record else insert fresh..
         database.beginTransaction();
 
+        boolean result = false;
         try {
             saveAttributesWithoutTransaction(cache);
             saveOriginalWaypointsWithoutTransaction(cache);
@@ -1096,10 +1130,10 @@ public class cgData {
     }
 
     public static boolean saveWaypoints(final cgCache cache) {
-        boolean result = false;
         init();
         database.beginTransaction();
 
+        boolean result = false;
         try {
             saveOriginalWaypointsWithoutTransaction(cache);
             database.setTransactionSuccessful();
@@ -1182,8 +1216,8 @@ public class cgData {
 
         init();
 
-        boolean ok = false;
         database.beginTransaction();
+        boolean ok = false;
         try {
             ContentValues values = new ContentValues();
             values.put("geocode", geocode);
@@ -1426,7 +1460,7 @@ public class cgData {
         }
 
         if (remaining.size() >= 1) {
-            Log.e("cgData.loadCaches(" + remaining.toString() + ") failed");
+            Log.i("cgData.loadCaches(" + remaining.toString() + ") failed");
         }
         return result;
     }
@@ -1473,7 +1507,6 @@ public class cgData {
             final Set<cgCache> caches = new HashSet<cgCache>();
             int logIndex = -1;
             do {
-                //Extracted Method = LOADDBMINIMAL
                 cgCache cache = cgData.createCacheFromDatabaseContent(cursor);
 
                 if (loadFlags.contains(LoadFlag.LOAD_ATTRIBUTES)) {
@@ -1550,7 +1583,6 @@ public class cgData {
      * @return Cache from DB
      */
     private static cgCache createCacheFromDatabaseContent(Cursor cursor) {
-        int index;
         cgCache cache = new cgCache();
 
         if (cacheColumnIndex == null) {
@@ -1619,7 +1651,7 @@ public class cgData {
         cache.setHint(cursor.getString(cacheColumnIndex[14]));
         cache.setSize(CacheSize.getById(cursor.getString(cacheColumnIndex[15])));
         cache.setDifficulty(cursor.getFloat(cacheColumnIndex[16]));
-        index = cacheColumnIndex[17];
+        int index = cacheColumnIndex[17];
         if (cursor.isNull(index)) {
             cache.setDirection(null);
         } else {
@@ -1706,8 +1738,6 @@ public class cgData {
 
         init();
 
-        cgWaypoint waypoint = null;
-
         Cursor cursor = database.query(
                 dbTableWaypoints,
                 WAYPOINT_COLUMNS,
@@ -1720,6 +1750,7 @@ public class cgData {
 
         Log.d("cgData.loadWaypoint(" + id + ")");
 
+        cgWaypoint waypoint = null;
         if (cursor != null && cursor.getCount() > 0) {
             cursor.moveToFirst();
 
@@ -1872,10 +1903,10 @@ public class cgData {
     }
 
     public static boolean clearSearchedDestinations() {
-        boolean success = true;
         init();
         database.beginTransaction();
 
+        boolean success = true;
         try {
             database.delete(dbTableSearchDestionationHistory, null, null);
             database.setTransactionSuccessful();
@@ -2080,28 +2111,45 @@ public class cgData {
         if (cacheType == null) {
             throw new IllegalArgumentException("cacheType must not be null");
         }
-        if (list < 0) {
-            throw new IllegalArgumentException("list must be >= 0");
+        if (list <= 0) {
+            throw new IllegalArgumentException("list must be > 0");
         }
         init();
 
         try {
             StringBuilder sql = new StringBuilder("select count(_id) from " + dbTableCaches + " where detailed = 1");
+            String typeKey;
+            int reasonIndex;
             if (cacheType != CacheType.ALL) {
-                sql.append(" and type = " + DatabaseUtils.sqlEscapeString(cacheType.id));
+                sql.append(" and type = ?");
+                typeKey = cacheType.id;
+                reasonIndex = 2;
             }
-            if (list == 0) {
+            else {
+                typeKey = "all_types";
+                reasonIndex = 1;
+            }
+            String listKey;
+            if (list == StoredList.ALL_LIST_ID) {
                 sql.append(" and reason > 0");
-            } else if (list >= 1) {
-                sql.append(" and reason = " + list);
+                listKey = "all_list";
+            } else {
+                sql.append(" and reason = ?");
+                listKey = "list";
             }
 
-            String key = "CountCaches_" + cacheType.id + "_" + Integer.toString(list);
+            String key = "CountCaches_" + typeKey + "_" + listKey;
 
             SQLiteStatement compiledStmnt = PreparedStatements.getStatement(key, sql.toString());
+            if (cacheType != CacheType.ALL) {
+                compiledStmnt.bindString(1, cacheType.id);
+            }
+            if (list != StoredList.ALL_LIST_ID) {
+                compiledStmnt.bindLong(reasonIndex, list);
+            }
             return (int) compiledStmnt.simpleQueryForLong();
         } catch (Exception e) {
-            Log.e("cgData.loadAllStoredCachesCount: " + e.toString());
+            Log.e("cgData.loadAllStoredCachesCount", e);
         }
 
         return 0;
@@ -2113,7 +2161,7 @@ public class cgData {
         try {
             return (int) PreparedStatements.getCountHistoryCaches().simpleQueryForLong();
         } catch (Exception e) {
-            Log.e("cgData.getAllHistoricCachesCount: " + e.toString());
+            Log.e("cgData.getAllHistoricCachesCount", e);
         }
 
         return 0;
@@ -2126,7 +2174,7 @@ public class cgData {
      *            the current coordinates to sort by distance, or null to sort by geocode
      * @param cacheType
      * @param listId
-     * @return
+     * @return a non-null set of geocodes
      */
     private static Set<String> loadBatchOfStoredGeocodes(final Geopoint coords, final CacheType cacheType, final int listId) {
         if (cacheType == null) {
@@ -2134,17 +2182,18 @@ public class cgData {
         }
         init();
 
-        Set<String> geocodes = new HashSet<String>();
+        final Set<String> geocodes = new HashSet<String>();
 
-        StringBuilder specifySql = new StringBuilder();
+        final StringBuilder selection = new StringBuilder();
 
-        specifySql.append("reason ");
-        specifySql.append(listId != StoredList.ALL_LIST_ID ? "=" + Math.max(listId, 1) : ">= " + StoredList.STANDARD_LIST_ID);
-        specifySql.append(" and detailed = 1 ");
+        selection.append("reason ");
+        selection.append(listId != StoredList.ALL_LIST_ID ? "=" + Math.max(listId, 1) : ">= " + StoredList.STANDARD_LIST_ID);
+        selection.append(" and detailed = 1 ");
 
+        String[] selectionArgs = null;
         if (cacheType != CacheType.ALL) {
-            specifySql.append(" and type = ");
-            specifySql.append(DatabaseUtils.sqlEscapeString(cacheType.id));
+            selection.append(" and type = ?");
+            selectionArgs = new String[] { String.valueOf(cacheType.id) };
         }
 
         try {
@@ -2154,8 +2203,8 @@ public class cgData {
                         dbTableCaches,
                         new String[]{"geocode", "(abs(latitude-" + String.format((Locale) null, "%.6f", coords.getLatitude()) +
                                 ") + abs(longitude-" + String.format((Locale) null, "%.6f", coords.getLongitude()) + ")) as dif"},
-                        specifySql.toString(),
-                        null,
+                        selection.toString(),
+                        selectionArgs,
                         null,
                         null,
                         "dif",
@@ -2164,8 +2213,8 @@ public class cgData {
                 cursor = database.query(
                         dbTableCaches,
                         new String[]{"geocode"},
-                        specifySql.toString(),
-                        null,
+                        selection.toString(),
+                        selectionArgs,
                         null,
                         null,
                         "geocode");
@@ -2182,7 +2231,7 @@ public class cgData {
             cursor.close();
 
         } catch (Exception e) {
-            Log.e("cgData.loadBatchOfStoredGeocodes: " + e.toString());
+            Log.e("cgData.loadBatchOfStoredGeocodes", e);
         }
 
         return geocodes;
@@ -2191,47 +2240,35 @@ public class cgData {
     private static Set<String> loadBatchOfHistoricGeocodes(final boolean detailedOnly, final CacheType cacheType) {
         init();
 
-        Set<String> geocodes = new HashSet<String>();
+        final Set<String> geocodes = new HashSet<String>();
 
-        StringBuilder specifySql = new StringBuilder();
-        specifySql.append("visiteddate > 0");
+        final StringBuilder selection = new StringBuilder("visiteddate > 0");
 
         if (detailedOnly) {
-            specifySql.append(" and detailed = 1");
+            selection.append(" and detailed = 1");
         }
+        String[] selectionArgs = null;
         if (cacheType != CacheType.ALL) {
-            specifySql.append(" and type = ");
-            specifySql.append(DatabaseUtils.sqlEscapeString(cacheType.id));
+            selection.append(" and type = ?");
+            selectionArgs = new String[] { String.valueOf(cacheType.id) };
         }
 
         try {
-            Cursor cursor = database.query(
+            final Cursor cursor = database.query(
                     dbTableCaches,
                     new String[]{"geocode"},
-                    specifySql.toString(),
-                    null,
+                    selection.toString(),
+                    selectionArgs,
                     null,
                     null,
                     "visiteddate",
                     null);
-
-            if (cursor != null) {
-                if (cursor.getCount() > 0) {
-                    cursor.moveToFirst();
-                    int index = cursor.getColumnIndex("geocode");
-
-                    do {
-                        geocodes.add(cursor.getString(index));
-                    } while (cursor.moveToNext());
-                } else {
-                    cursor.close();
-                    return null;
-                }
-
-                cursor.close();
+            while (cursor.moveToNext()) {
+                geocodes.add(cursor.getString(0));
             }
+            cursor.close();
         } catch (Exception e) {
-            Log.e("cgData.loadBatchOfHistoricGeocodes: " + e.toString());
+            Log.e("cgData.loadBatchOfHistoricGeocodes", e);
         }
 
         return geocodes;
@@ -2270,25 +2307,26 @@ public class cgData {
         }
 
         // viewport limitation
-        final StringBuilder where = new StringBuilder(buildCoordinateWhere(dbTableCaches, viewport));
+        final StringBuilder selection = new StringBuilder(buildCoordinateWhere(dbTableCaches, viewport));
 
         // cacheType limitation
+        String[] selectionArgs = null;
         if (cacheType != CacheType.ALL) {
-            where.append(" and type = ");
-            where.append(DatabaseUtils.sqlEscapeString(cacheType.id));
+            selection.append(" and type = ?");
+            selectionArgs = new String[] { String.valueOf(cacheType.id) };
         }
 
         // offline caches only
         if (stored) {
-            where.append(" and reason >= " + StoredList.STANDARD_LIST_ID);
+            selection.append(" and reason >= " + StoredList.STANDARD_LIST_ID);
         }
 
         try {
             final Cursor cursor = database.query(
                     dbTableCaches,
                     new String[]{"geocode"},
-                    where.toString(),
-                    null,
+                    selection.toString(),
+                    selectionArgs,
                     null,
                     null,
                     null,
@@ -2303,7 +2341,7 @@ public class cgData {
             }
             cursor.close();
         } catch (Exception e) {
-            Log.e("cgData.loadInViewport: " + e.toString());
+            Log.e("cgData.loadInViewport", e);
         }
 
         return new SearchResult(geocodes);
@@ -2329,10 +2367,10 @@ public class cgData {
 
         Log.d("Database clean: started");
 
-        Cursor cursor;
         Set<String> geocodes = new HashSet<String>();
 
         try {
+            Cursor cursor;
             if (more) {
                 cursor = database.query(
                         dbTableCaches,
@@ -2378,7 +2416,7 @@ public class cgData {
             }
 
         } catch (Exception e) {
-            Log.w("cgData.clean: " + e.toString());
+            Log.w("cgData.clean", e);
         }
 
         Log.d("Database clean: finished");
@@ -2580,7 +2618,7 @@ public class cgData {
             lists.addAll(storedLists);
 
         } catch (Exception e) {
-            Log.e("cgData.readLists: " + e.toString());
+            Log.e("cgData.readLists", e);
         }
         return lists;
     }
@@ -2614,8 +2652,8 @@ public class cgData {
             Cursor cursor = database.query(
                     dbTableLists,
                     new String[]{"_id", "title"},
-                    "_id = " + (id - customListIdOffset),
-                    null,
+                    "_id = ? ",
+                    new String[] { String.valueOf(id - customListIdOffset) },
                     null,
                     null,
                     null);
@@ -2686,8 +2724,8 @@ public class cgData {
 
         init();
 
-        int count = 0;
         database.beginTransaction();
+        int count = 0;
         try {
             ContentValues values = new ContentValues();
             values.put("title", name);
@@ -2715,8 +2753,8 @@ public class cgData {
 
         init();
 
-        boolean status = false;
         database.beginTransaction();
+        boolean status = false;
         try {
             int cnt = database.delete(dbTableLists, "_id = " + (listId - customListIdOffset), null);
 
@@ -2772,8 +2810,8 @@ public class cgData {
         }
         init();
 
-        boolean result = false;
         database.beginTransaction();
+        boolean result = false;
         try {
             database.delete(dbTableSearchDestionationHistory, "_id = " + destination.getId(), null);
             database.setTransactionSuccessful();
@@ -2827,7 +2865,7 @@ public class cgData {
     private static String whereGeocodeIn(Set<String> geocodes) {
         final StringBuilder where = new StringBuilder();
 
-        if (geocodes != null && geocodes.size() > 0) {
+        if (geocodes != null && !geocodes.isEmpty()) {
             StringBuilder all = new StringBuilder();
             for (String geocode : geocodes) {
                 if (all.length() > 0) {
@@ -2923,10 +2961,6 @@ public class cgData {
 
         private static HashMap<String, SQLiteStatement> statements = new HashMap<String, SQLiteStatement>();
 
-        private PreparedStatements() {
-            // utility class
-        }
-
         public static SQLiteStatement getMoveToStandardList() {
             return getStatement("MoveToStandardList", "UPDATE " + dbTableCaches + " SET reason = " + StoredList.STANDARD_LIST_ID + " WHERE reason = ?");
         }
@@ -2970,7 +3004,7 @@ public class cgData {
         private static synchronized SQLiteStatement getStatement(final String key, final String query) {
             SQLiteStatement statement = statements.get(key);
             if (statement == null) {
-                Log.i("Compiling " + key);
+                Log.d("Compiling " + key);
                 statement = database.compileStatement(query);
                 statements.put(key, statement);
             }

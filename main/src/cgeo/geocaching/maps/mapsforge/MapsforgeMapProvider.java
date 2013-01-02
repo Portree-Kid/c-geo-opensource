@@ -31,7 +31,6 @@ public final class MapsforgeMapProvider extends AbstractMapProvider {
     public static final String MAPSFORGE_MAPNIK_ID = "MAPSFORGE_MAPNIK";
     private boolean oldMap = false;
     private MapItemFactory mapItemFactory = new MapsforgeMapItemFactory();
-    private static MapsforgeMapProvider instance;
 
     private MapsforgeMapProvider() {
         final Resources resources = cgeoapplication.getInstance().getResources();
@@ -42,11 +41,12 @@ public final class MapsforgeMapProvider extends AbstractMapProvider {
         updateOfflineMaps();
     }
 
+    private static final class Holder {
+        private static final MapsforgeMapProvider INSTANCE = new MapsforgeMapProvider();
+    }
+
     public static MapsforgeMapProvider getInstance() {
-        if (instance == null) {
-            instance = new MapsforgeMapProvider();
-        }
-        return instance;
+        return Holder.INSTANCE;
     }
 
     public static List<String> getOfflineMaps() {
@@ -93,7 +93,7 @@ public final class MapsforgeMapProvider extends AbstractMapProvider {
     }
 
     private static boolean isMapfile024(String mapFileIn) {
-        return org.mapsforge.android.mapsold.MapDatabase.isValidMapFile(mapFileIn);
+        return mapFileIn != null && org.mapsforge.android.mapsold.MapDatabase.isValidMapFile(mapFileIn);
     }
 
     @Override

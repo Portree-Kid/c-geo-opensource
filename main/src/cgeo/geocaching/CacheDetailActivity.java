@@ -1,9 +1,8 @@
 package cgeo.geocaching;
 
 import cgeo.calendar.ICalendar;
-import cgeo.geocaching.activity.AbstractActivity;
+import cgeo.geocaching.activity.AbstractViewPagerActivity;
 import cgeo.geocaching.activity.Progress;
-import cgeo.geocaching.apps.cache.GeneralAppsFactory;
 import cgeo.geocaching.apps.cache.navi.NavigationAppFactory;
 import cgeo.geocaching.compatibility.Compatibility;
 import cgeo.geocaching.connector.ConnectorFactory;
@@ -13,11 +12,13 @@ import cgeo.geocaching.enumerations.CacheAttribute;
 import cgeo.geocaching.enumerations.LoadFlags;
 import cgeo.geocaching.enumerations.LoadFlags.SaveFlag;
 import cgeo.geocaching.enumerations.LogType;
+import cgeo.geocaching.enumerations.WaypointType;
 import cgeo.geocaching.geopoint.GeopointFormatter;
 import cgeo.geocaching.geopoint.Units;
 import cgeo.geocaching.network.HtmlImage;
 import cgeo.geocaching.network.Network;
 import cgeo.geocaching.network.Parameters;
+import cgeo.geocaching.ui.AbstractCachingPageViewCreator;
 import cgeo.geocaching.ui.CacheDetailsCreator;
 import cgeo.geocaching.ui.DecryptTextClickListener;
 import cgeo.geocaching.ui.EditorDialog;
@@ -36,15 +37,16 @@ import cgeo.geocaching.utils.Log;
 import cgeo.geocaching.utils.TranslationUtils;
 import cgeo.geocaching.utils.UnknownTagsHandler;
 
-import com.viewpagerindicator.TitlePageIndicator;
-import com.viewpagerindicator.TitleProvider;
-
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import android.R.color;
+import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -59,10 +61,6 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.os.Parcelable;
-import android.support.v4.view.PagerAdapter;
-import android.support.v4.view.ViewPager;
-import android.support.v4.view.ViewPager.OnPageChangeListener;
 import android.text.Editable;
 import android.text.Html;
 import android.text.Spannable;
@@ -85,6 +83,9 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -97,7 +98,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -110,7 +110,7 @@ import java.util.regex.Pattern;
  *
  * e.g. details, description, logs, waypoints, inventory...
  */
-public class CacheDetailActivity extends AbstractActivity {
+public class CacheDetailActivity extends AbstractViewPagerActivity<CacheDetailActivity.Page> {
 
     private static final int MENU_FIELD_COPY = 1;
     private static final int MENU_FIELD_TRANSLATE = 2;
@@ -128,6 +128,7 @@ public class CacheDetailActivity extends AbstractActivity {
     private static final int CONTEXT_MENU_WAYPOINT_NAVIGATE = 1238;
     private static final int CONTEXT_MENU_WAYPOINT_CACHES_AROUND = 1239;
     private static final int CONTEXT_MENU_WAYPOINT_DEFAULT_NAVIGATION = 1240;
+    private static final int CONTEXT_MENU_WAYPOINT_RESET_ORIGINAL_CACHE_COORDINATES = 1241;
 
     private static final Pattern DARK_COLOR_PATTERN = Pattern.compile(Pattern.quote("color=\"#") + "(0[0-9]){3}" + "\"");
 
@@ -168,33 +169,6 @@ public class CacheDetailActivity extends AbstractActivity {
     private int contextMenuWPIndex = -1;
 
     /**
-     * A {@link List} of all available pages.
-     *
-     * TODO Move to adapter
-     */
-    private final List<Page> pageOrder = new ArrayList<Page>();
-
-    /**
-     * Instances of all {@link PageViewCreator}.
-     */
-    private final Map<Page, PageViewCreator> viewCreators = new HashMap<Page, PageViewCreator>();
-
-    /**
-     * The {@link ViewPager} for this activity.
-     */
-    private ViewPager viewPager;
-
-    /**
-     * The {@link ViewPagerAdapter} for this activity.
-     */
-    private ViewPagerAdapter viewPagerAdapter;
-
-    /**
-     * The {@link TitlePageIndicator} for this activity.
-     */
-    private TitlePageIndicator titleIndicator;
-
-    /**
      * If another activity is called and can modify the data of this activity, we refresh it on resume.
      */
     private boolean refreshOnResume = false;
@@ -225,8 +199,6 @@ public class CacheDetailActivity extends AbstractActivity {
         setTitle(res.getString(R.string.cache));
 
         String geocode = null;
-        String guid = null;
-        String name = null;
 
         // TODO Why can it happen that search is not null? onCreate should be called only once and it is not set before.
         if (search != null) {
@@ -241,6 +213,8 @@ public class CacheDetailActivity extends AbstractActivity {
         final Uri uri = getIntent().getData();
 
         // try to get data from extras
+        String name = null;
+        String guid = null;
         if (geocode == null && extras != null) {
             geocode = extras.getString("geocode");
             name = extras.getString("name");
@@ -315,43 +289,20 @@ public class CacheDetailActivity extends AbstractActivity {
             }
         });
 
-        // initialize ViewPager
-        viewPager = (ViewPager) findViewById(R.id.viewpager);
-        viewPagerAdapter = new ViewPagerAdapter();
-        viewPager.setAdapter(viewPagerAdapter);
+        final int pageToOpen = Settings.isOpenLastDetailsPage() ? Settings.getLastDetailsPage() : 1;
+        createViewPager(pageToOpen, new OnPageSelectedListener() {
 
-        titleIndicator = (TitlePageIndicator) findViewById(R.id.pager_indicator);
-        titleIndicator.setViewPager(viewPager);
-        titleIndicator.setOnPageChangeListener(new OnPageChangeListener() {
             @Override
             public void onPageSelected(int position) {
                 if (Settings.isOpenLastDetailsPage()) {
                     Settings.setLastDetailsPage(position);
                 }
                 // lazy loading of cache images
-                if (pageOrder.get(position) == Page.IMAGES) {
+                if (getPage(position) == Page.IMAGES) {
                     loadCacheImages();
                 }
             }
-
-            @Override
-            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-            }
-
-            @Override
-            public void onPageScrollStateChanged(int state) {
-            }
         });
-
-        // switch to entry page (last used or 2)
-        int entryPageIndex = Settings.isOpenLastDetailsPage() ? Settings.getLastDetailsPage() : 1;
-        if (viewPagerAdapter.getCount() < entryPageIndex) {
-            for (int i = 0; i <= entryPageIndex; i++) {
-                // we can't switch to a page that is out of bounds, so we add null-pages
-                pageOrder.add(null);
-            }
-        }
-        viewPager.setCurrentItem(entryPageIndex, false);
 
         // Initialization done. Let's load the data with the given information.
         new LoadCacheThread(geocode, guid, loadCacheHandler).start();
@@ -429,10 +380,14 @@ public class CacheDetailActivity extends AbstractActivity {
                                 final cgWaypoint waypoint = sortedWaypoints.get(i);
                                 final int index = cache.getWaypoints().indexOf(waypoint);
                                 menu.setHeaderTitle(res.getString(R.string.waypoint));
-                                menu.add(CONTEXT_MENU_WAYPOINT_EDIT, index, 0, R.string.waypoint_edit);
-                                menu.add(CONTEXT_MENU_WAYPOINT_DUPLICATE, index, 0, R.string.waypoint_duplicate);
+                                if (waypoint.getWaypointType().equals(WaypointType.ORIGINAL)) {
+                                    menu.add(CONTEXT_MENU_WAYPOINT_RESET_ORIGINAL_CACHE_COORDINATES, index, 0, R.string.waypoint_reset_cache_coords);
+                                } else {
+                                    menu.add(CONTEXT_MENU_WAYPOINT_EDIT, index, 0, R.string.waypoint_edit);
+                                    menu.add(CONTEXT_MENU_WAYPOINT_DUPLICATE, index, 0, R.string.waypoint_duplicate);
+                                }
                                 contextMenuWPIndex = index;
-                                if (waypoint.isUserDefined()) {
+                                if (waypoint.isUserDefined() && !waypoint.getWaypointType().equals(WaypointType.ORIGINAL)) {
                                     menu.add(CONTEXT_MENU_WAYPOINT_DELETE, index, 0, R.string.waypoint_delete);
                                 }
                                 if (waypoint.getCoords() != null) {
@@ -463,7 +418,7 @@ public class CacheDetailActivity extends AbstractActivity {
                 showToast(res.getString(R.string.translate_length_warning));
             }
             menu.add(viewId, MENU_FIELD_TRANSLATE, 0, res.getString(R.string.translate_to_sys_lang, Locale.getDefault().getDisplayLanguage()));
-            if (Settings.isUseEnglish() && Locale.getDefault() != Locale.ENGLISH) {
+            if (Settings.isUseEnglish() && !Locale.getDefault().equals(Locale.ENGLISH)) {
                 menu.add(viewId, MENU_FIELD_TRANSLATE_EN, 0, res.getString(R.string.translate_to_english));
             }
 
@@ -543,13 +498,16 @@ public class CacheDetailActivity extends AbstractActivity {
                     cgeocaches.startActivityCoordinates(this, waypointAround.getCoords());
                 }
                 break;
-            default: {
+
+            case CONTEXT_MENU_WAYPOINT_RESET_ORIGINAL_CACHE_COORDINATES:
+                new ResetCacheCoordinatesDialog(cache, cache.getWaypoint(index), this).show();
+                break;
+
+            default:
                 if (imagesList != null && imagesList.onContextItemSelected(item)) {
                     return true;
                 }
-
                 return onOptionsItemSelected(item);
-            }
         }
         return false;
     }
@@ -561,7 +519,6 @@ public class CacheDetailActivity extends AbstractActivity {
 
             final SubMenu subMenu = menu.addSubMenu(0, 0, 0, res.getString(R.string.cache_menu_navigate)).setIcon(R.drawable.ic_menu_mapmode);
             NavigationAppFactory.addMenuItems(subMenu, cache);
-            GeneralAppsFactory.addMenuItems(subMenu, cache);
 
             menu.add(0, MENU_CALENDAR, 0, res.getString(R.string.cache_menu_event)).setIcon(R.drawable.ic_menu_agenda); // add event to calendar
             LoggingUI.addMenuItems(menu, cache);
@@ -574,10 +531,12 @@ public class CacheDetailActivity extends AbstractActivity {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        menu.findItem(MENU_DEFAULT_NAVIGATION).setVisible(null != cache.getCoords());
-        menu.findItem(MENU_CALENDAR).setVisible(cache.canBeAddedToCalendar());
-        menu.findItem(MENU_CACHES_AROUND).setVisible(null != cache.getCoords() && cache.supportsCachesAround());
-        menu.findItem(MENU_BROWSER).setVisible(cache.canOpenInBrowser());
+        if (cache != null) {
+            menu.findItem(MENU_DEFAULT_NAVIGATION).setVisible(null != cache.getCoords());
+            menu.findItem(MENU_CALENDAR).setVisible(cache.canBeAddedToCalendar());
+            menu.findItem(MENU_CACHES_AROUND).setVisible(null != cache.getCoords() && cache.supportsCachesAround());
+            menu.findItem(MENU_BROWSER).setVisible(cache.canOpenInBrowser());
+        }
         return super.onPrepareOptionsMenu(menu);
     }
 
@@ -585,7 +544,7 @@ public class CacheDetailActivity extends AbstractActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         final int menuItem = item.getItemId();
 
-        switch(menuItem) {
+        switch (menuItem) {
             case 0:
                 // no menu selected, but a new sub menu shown
                 return false;
@@ -607,16 +566,14 @@ public class CacheDetailActivity extends AbstractActivity {
                     return true;
                 }
                 return false;
-        }
-        if (NavigationAppFactory.onMenuItemSelected(item, this, cache)) {
-            return true;
-        }
-        if (GeneralAppsFactory.onMenuItemSelected(item, this, cache)) {
-            return true;
-        }
-        if (LoggingUI.onMenuItemSelected(item, this, cache)) {
-            refreshOnResume = true;
-            return true;
+            default:
+                if (NavigationAppFactory.onMenuItemSelected(item, this, cache)) {
+                    return true;
+                }
+                if (LoggingUI.onMenuItemSelected(item, this, cache)) {
+                    refreshOnResume = true;
+                    return true;
+                }
         }
 
         return true;
@@ -679,12 +636,7 @@ public class CacheDetailActivity extends AbstractActivity {
         // allow cache to notify CacheDetailActivity when it changes so it can be reloaded
         cache.setChangeNotificationHandler(cacheChangeNotificationHandler);
 
-        // notify all creators that the data has changed
-        for (PageViewCreator creator : viewCreators.values()) {
-            creator.notifyDataSetChanged();
-        }
-
-        // action bar: title and icon (default: mystery icon)
+        // action bar: title and icon
         if (StringUtils.isNotBlank(cache.getName())) {
             setTitle(cache.getName() + " (" + cache.getGeocode() + ')');
         } else {
@@ -692,38 +644,10 @@ public class CacheDetailActivity extends AbstractActivity {
         }
         ((TextView) findViewById(R.id.actionbar_title)).setCompoundDrawablesWithIntrinsicBounds(getResources().getDrawable(cache.getType().markerId), null, null, null);
 
-        // add available pages (remove old pages first)
-        pageOrder.clear();
-
-        pageOrder.add(Page.WAYPOINTS);
-        pageOrder.add(Page.DETAILS);
-        final int detailsIndex = pageOrder.size() - 1;
-        pageOrder.add(Page.DESCRIPTION);
-        if (cache.getLogs().isNotEmpty()) {
-            pageOrder.add(Page.LOGS);
-        }
-        if (CollectionUtils.isNotEmpty(cache.getFriendsLogs())) {
-            pageOrder.add(Page.LOGSFRIENDS);
-        }
-        if (CollectionUtils.isNotEmpty(cache.getInventory())) {
-            pageOrder.add(Page.INVENTORY);
-        }
-        if (CollectionUtils.isNotEmpty(cache.getImages())) {
-            pageOrder.add(Page.IMAGES);
-        }
-
-        // switch to details page, if we're out of bounds
-        if (viewPager.getCurrentItem() < 0 || viewPager.getCurrentItem() >= viewPagerAdapter.getCount()) {
-            viewPager.setCurrentItem(detailsIndex, false);
-        }
-
-        // notify the adapter that the data has changed
-        viewPagerAdapter.notifyDataSetChanged();
-
-        // notify the indicator that the data has changed
-        titleIndicator.notifyDataSetChanged();
+        reinitializeViewPager();
 
         // rendering done! remove progress popup if any there
+        invalidateOptionsMenuCompatible();
         progress.dismiss();
     }
 
@@ -939,7 +863,7 @@ public class CacheDetailActivity extends AbstractActivity {
         if (imagesList != null) {
             return;
         }
-        PageViewCreator creator = viewCreators.get(Page.IMAGES);
+        PageViewCreator creator = getViewCreator(Page.IMAGES);
         if (creator == null) {
             return;
         }
@@ -947,7 +871,7 @@ public class CacheDetailActivity extends AbstractActivity {
         if (imageView == null) {
             return;
         }
-        imagesList = new ImagesList(CacheDetailActivity.this, cache.getGeocode());
+        imagesList = new ImagesList(this, cache.getGeocode());
         imagesList.loadImages(imageView, cache.getImages(), ImageType.AllImages, false);
     }
 
@@ -955,121 +879,6 @@ public class CacheDetailActivity extends AbstractActivity {
         final Intent detailIntent = new Intent(context, CacheDetailActivity.class);
         detailIntent.putExtra("geocode", geocode);
         context.startActivity(detailIntent);
-    }
-
-    /**
-     * The ViewPagerAdapter for scrolling through pages of the CacheDetailActivity.
-     */
-    private class ViewPagerAdapter extends PagerAdapter implements TitleProvider {
-
-        @Override
-        public void destroyItem(View container, int position, Object object) {
-            ((ViewPager) container).removeView((View) object);
-        }
-
-        @Override
-        public void finishUpdate(View container) {
-        }
-
-        @Override
-        public int getCount() {
-            return pageOrder.size();
-        }
-
-        @Override
-        public Object instantiateItem(View container, int position) {
-            final Page page = pageOrder.get(position);
-
-            PageViewCreator creator = viewCreators.get(page);
-
-            if (null == creator && null != page) {
-                // The creator is not instantiated yet, let's do it.
-                switch (page) {
-                    case DETAILS:
-                        creator = new DetailsViewCreator();
-                        break;
-
-                    case DESCRIPTION:
-                        creator = new DescriptionViewCreator();
-                        break;
-
-                    case LOGS:
-                        creator = new LogsViewCreator(true);
-                        break;
-
-                    case LOGSFRIENDS:
-                        creator = new LogsViewCreator(false);
-                        break;
-
-                    case WAYPOINTS:
-                        creator = new WaypointsViewCreator();
-                        break;
-
-                    case INVENTORY:
-                        creator = new InventoryViewCreator();
-                        break;
-
-                    case IMAGES:
-                        creator = new ImagesViewCreator();
-                        break;
-                }
-                viewCreators.put(page, creator);
-            }
-
-            View view = null;
-
-            try {
-                if (null != creator) {
-                    // Result from getView() is maybe cached, but it should be valid because the
-                    // creator should be informed about data-changes with notifyDataSetChanged()
-                    view = creator.getView();
-                    ((ViewPager) container).addView(view, 0);
-                }
-            } catch (Exception e) {
-                Log.e("ViewPagerAdapter.instantiateItem ", e);
-            }
-
-            return view;
-        }
-
-        @Override
-        public boolean isViewFromObject(View view, Object object) {
-            return view == object;
-        }
-
-        @Override
-        public void restoreState(Parcelable arg0, ClassLoader arg1) {
-        }
-
-        @Override
-        public Parcelable saveState() {
-            return null;
-        }
-
-        @Override
-        public void startUpdate(View arg0) {
-        }
-
-        @Override
-        public int getItemPosition(Object object) {
-            // We are doing the caching. So pretend that the view is gone.
-            // The ViewPager will get it back in instantiateItem()
-            return POSITION_NONE;
-        }
-
-        @Override
-        public String getTitle(int position) {
-            final Page page = pageOrder.get(position);
-            if (null == page) {
-                return "";
-            }
-            // show number of waypoints directly in waypoint title
-            if (page == Page.WAYPOINTS) {
-                final int waypointCount = cache.getWaypoints().size();
-                return res.getQuantityString(R.plurals.waypoints, waypointCount, waypointCount);
-            }
-            return res.getString(page.titleStringId);
-        }
     }
 
     /**
@@ -1086,7 +895,7 @@ public class CacheDetailActivity extends AbstractActivity {
 
         final private int titleStringId;
 
-        private Page(final int titleStringId) {
+        Page(final int titleStringId) {
             this.titleStringId = titleStringId;
         }
     }
@@ -1277,36 +1086,10 @@ public class CacheDetailActivity extends AbstractActivity {
         }
     }
 
-    private interface PageViewCreator {
-        /**
-         * Returns a validated view.
-         *
-         * @return
-         */
-        public View getDispatchedView();
-
-        /**
-         * Returns a (maybe cached) view.
-         *
-         * @return
-         */
-        public View getView();
-
-        /**
-         * Handles changed data-sets.
-         */
-        public void notifyDataSetChanged();
-    }
-
     /**
      * Creator for details-view.
      */
-    private class DetailsViewCreator implements PageViewCreator {
-        /**
-         * The main view for this creator
-         */
-        private ScrollView view;
-
+    private class DetailsViewCreator extends AbstractCachingPageViewCreator<ScrollView> {
         /**
          * Reference to the details list, so that the helper-method can access it without an additional argument
          */
@@ -1318,22 +1101,7 @@ public class CacheDetailActivity extends AbstractActivity {
         private Thread watchlistThread;
 
         @Override
-        public void notifyDataSetChanged() {
-            // There is a lot of data in this view, let's update everything
-            view = null;
-        }
-
-        @Override
-        public View getView() {
-            if (view == null) {
-                view = (ScrollView) getDispatchedView();
-            }
-
-            return view;
-        }
-
-        @Override
-        public View getDispatchedView() {
+        public ScrollView getDispatchedView() {
             if (cache == null) {
                 // something is really wrong
                 return null;
@@ -1411,22 +1179,22 @@ public class CacheDetailActivity extends AbstractActivity {
             if (cache.getCoords() != null) {
                 TextView valueView = details.add(R.string.cache_coordinates, cache.getCoords().toString());
                 valueView.setOnClickListener(new View.OnClickListener() {
-                            private int position = 0;
-                            private GeopointFormatter.Format[] availableFormats = new GeopointFormatter.Format[] {
-                                    GeopointFormatter.Format.LAT_LON_DECMINUTE,
-                                    GeopointFormatter.Format.LAT_LON_DECSECOND,
-                                    GeopointFormatter.Format.LAT_LON_DECDEGREE
-                            };
+                    private int position = 0;
+                    private GeopointFormatter.Format[] availableFormats = new GeopointFormatter.Format[] {
+                            GeopointFormatter.Format.LAT_LON_DECMINUTE,
+                            GeopointFormatter.Format.LAT_LON_DECSECOND,
+                            GeopointFormatter.Format.LAT_LON_DECDEGREE
+                    };
 
-                            // rotate coordinate formats on click
-                            @Override
-                            public void onClick(View view) {
-                                position = (position + 1) % availableFormats.length;
+                    // rotate coordinate formats on click
+                    @Override
+                    public void onClick(View view) {
+                        position = (position + 1) % availableFormats.length;
 
-                                final TextView valueView = (TextView) view.findViewById(R.id.value);
-                                valueView.setText(cache.getCoords().format(availableFormats[position]));
-                            }
-                        });
+                        final TextView valueView = (TextView) view.findViewById(R.id.value);
+                        valueView.setText(cache.getCoords().format(availableFormats[position]));
+                    }
+                });
                 registerForContextMenu(valueView);
             }
 
@@ -1852,38 +1620,26 @@ public class CacheDetailActivity extends AbstractActivity {
                     return;
                 }
 
-                final Bitmap bitmap = image.getBitmap();
-                if (bitmap == null || bitmap.getWidth() <= 10) {
-                    return;
-                }
+                try {
+                    final Bitmap bitmap = image.getBitmap();
+                    if (bitmap == null || bitmap.getWidth() <= 10) {
+                        return;
+                    }
 
-                ((ImageView) view.findViewById(R.id.map_preview)).setImageDrawable(image);
-                view.findViewById(R.id.map_preview_box).setVisibility(View.VISIBLE);
+                    ((ImageView) view.findViewById(R.id.map_preview)).setImageDrawable(image);
+                    view.findViewById(R.id.map_preview_box).setVisibility(View.VISIBLE);
+                } catch (Exception e) {
+                    Log.e("CacheDetailActivity.PreviewMapTask", e);
+                }
             }
         }
 
     }
 
-    private class DescriptionViewCreator implements PageViewCreator {
-
-        private ScrollView view;
+    private class DescriptionViewCreator extends AbstractCachingPageViewCreator<ScrollView> {
 
         @Override
-        public void notifyDataSetChanged() {
-            view = null;
-        }
-
-        @Override
-        public View getView() {
-            if (view == null) {
-                view = (ScrollView) getDispatchedView();
-            }
-
-            return view;
-        }
-
-        @Override
-        public View getDispatchedView() {
+        public ScrollView getDispatchedView() {
             if (cache == null) {
                 // something is really wrong
                 return null;
@@ -2126,31 +1882,15 @@ public class CacheDetailActivity extends AbstractActivity {
         }
     }
 
-    private class LogsViewCreator implements PageViewCreator {
-        private ListView view;
-        private boolean allLogs;
+    private class LogsViewCreator extends AbstractCachingPageViewCreator<ListView> {
+        private final boolean allLogs;
 
         LogsViewCreator(boolean allLogs) {
-            super();
             this.allLogs = allLogs;
         }
 
         @Override
-        public void notifyDataSetChanged() {
-            view = null;
-        }
-
-        @Override
-        public View getView() {
-            if (view == null) {
-                view = (ListView) getDispatchedView();
-            }
-
-            return view;
-        }
-
-        @Override
-        public View getDispatchedView() {
+        public ListView getDispatchedView() {
             if (cache == null) {
                 // something is really wrong
                 return null;
@@ -2169,7 +1909,7 @@ public class CacheDetailActivity extends AbstractActivity {
                     }
                 }
 
-                if (sortedLogCounts.size() > 0) {
+                if (!sortedLogCounts.isEmpty()) {
                     // sort the log counts by type id ascending. that way the FOUND, DNF log types are the first and most visible ones
                     Collections.sort(sortedLogCounts, new Comparator<Entry<LogType, Integer>>() {
 
@@ -2223,7 +1963,7 @@ public class CacheDetailActivity extends AbstractActivity {
                     holder.count.setVisibility(View.VISIBLE);
                     if (log.found == -1) {
                         holder.count.setVisibility(View.GONE);
-                    } else  {
+                    } else {
                         holder.count.setText(res.getQuantityString(R.plurals.cache_counts, log.found, log.found));
                     }
 
@@ -2297,26 +2037,10 @@ public class CacheDetailActivity extends AbstractActivity {
         }
     }
 
-    private class WaypointsViewCreator implements PageViewCreator {
-
-        private ScrollView view;
+    private class WaypointsViewCreator extends AbstractCachingPageViewCreator<ScrollView> {
 
         @Override
-        public void notifyDataSetChanged() {
-            view = null;
-        }
-
-        @Override
-        public View getView() {
-            if (view == null) {
-                view = (ScrollView) getDispatchedView();
-            }
-
-            return view;
-        }
-
-        @Override
-        public View getDispatchedView() {
+        public ScrollView getDispatchedView() {
             if (cache == null) {
                 // something is really wrong
                 return null;
@@ -2412,26 +2136,10 @@ public class CacheDetailActivity extends AbstractActivity {
         }
     }
 
-    private class InventoryViewCreator implements PageViewCreator {
-
-        private ListView view;
+    private class InventoryViewCreator extends AbstractCachingPageViewCreator<ListView> {
 
         @Override
-        public void notifyDataSetChanged() {
-            view = null;
-        }
-
-        @Override
-        public View getView() {
-            if (view == null) {
-                view = (ListView) getDispatchedView();
-            }
-
-            return view;
-        }
-
-        @Override
-        public View getDispatchedView() {
+        public ListView getDispatchedView() {
             if (cache == null) {
                 // something is really wrong
                 return null;
@@ -2448,7 +2156,7 @@ public class CacheDetailActivity extends AbstractActivity {
                     Object selection = arg0.getItemAtPosition(arg2);
                     if (selection instanceof cgTrackable) {
                         cgTrackable trackable = (cgTrackable) selection;
-                        cgeotrackable.startActivity(CacheDetailActivity.this, trackable.getGuid(), trackable.getGeocode(), trackable.getName());
+                        TrackableActivity.startActivity(CacheDetailActivity.this, trackable.getGuid(), trackable.getGeocode(), trackable.getName());
                     }
                 }
             });
@@ -2457,23 +2165,7 @@ public class CacheDetailActivity extends AbstractActivity {
         }
     }
 
-    private class ImagesViewCreator implements PageViewCreator {
-
-        private View view;
-
-        @Override
-        public void notifyDataSetChanged() {
-            view = null;
-        }
-
-        @Override
-        public View getView() {
-            if (view == null) {
-                view = getDispatchedView();
-            }
-
-            return view;
-        }
+    private class ImagesViewCreator extends AbstractCachingPageViewCreator<View> {
 
         @Override
         public View getDispatchedView() {
@@ -2482,7 +2174,7 @@ public class CacheDetailActivity extends AbstractActivity {
             }
 
             view = getLayoutInflater().inflate(R.layout.caches_images, null);
-            if (imagesList == null && viewPager.getCurrentItem() == pageOrder.indexOf(Page.IMAGES)) {
+            if (imagesList == null && isCurrentPage(Page.IMAGES)) {
                 loadCacheImages();
             }
             return view;
@@ -2502,4 +2194,194 @@ public class CacheDetailActivity extends AbstractActivity {
         cacheIntent.putExtra("name", cacheName);
         context.startActivity(cacheIntent);
     }
+
+    /**
+     * A dialog to allow the user to select reseting coordinates local/remote/both.
+     */
+    private class ResetCacheCoordinatesDialog extends AlertDialog implements OnCheckedChangeListener {
+
+        final CheckBox uploadOption;
+        final CheckBox resetLocalyOption;
+
+        public ResetCacheCoordinatesDialog(final cgCache cache, final cgWaypoint wpt, final Activity activity) {
+            super(activity);
+
+            View layout = activity.getLayoutInflater().inflate(R.layout.reset_cache_coords_dialog, null);
+            setView(layout);
+
+            uploadOption = (CheckBox) layout.findViewById(R.id.upload);
+            resetLocalyOption = (CheckBox) layout.findViewById(R.id.local);
+
+            if (ConnectorFactory.getConnector(cache).supportsOwnCoordinates()) {
+                uploadOption.setChecked(true);
+                uploadOption.setVisibility(View.VISIBLE);
+            }
+
+            uploadOption.setOnCheckedChangeListener(this);
+            resetLocalyOption.setOnCheckedChangeListener(this);
+
+            layout.findViewById(R.id.reset).setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    dismiss();
+                    final ProgressDialog p = ProgressDialog.show(CacheDetailActivity.this, res.getString(R.string.cache), res.getString(R.string.waypoint_reset), true);
+                    final Handler h = new Handler() {
+                        private boolean remoteFinished = false;
+                        private boolean localFinished = false;
+
+                        @Override
+                        public void handleMessage(Message msg) {
+                            if (msg.what == ResetCoordsThread.LOCAL) {
+                                localFinished = true;
+                            } else {
+                                remoteFinished = true;
+                            }
+
+                            if ((localFinished || !resetLocalyOption.isChecked()) && (remoteFinished || !uploadOption.isChecked())) {
+                                p.dismiss();
+                                notifyDataSetChanged();
+                            }
+                        }
+
+                    };
+                    new ResetCoordsThread(cache, h, wpt, resetLocalyOption.isChecked(), uploadOption.isChecked(), p).start();
+                }
+            });
+        }
+
+        @Override
+        public void onCheckedChanged(CompoundButton arg0, boolean arg1) {
+            findViewById(R.id.reset).setEnabled(
+                    (uploadOption.isChecked() || resetLocalyOption.isChecked()));
+        }
+    }
+
+    private class ResetCoordsThread extends Thread {
+
+        private final cgCache cache;
+        private final Handler handler;
+        private final boolean local;
+        private final boolean remote;
+        private final cgWaypoint wpt;
+        private ProgressDialog progress;
+        public static final int LOCAL = 0;
+        public static final int ON_WEBSITE = 1;
+
+        public ResetCoordsThread(cgCache cache, Handler handler, final cgWaypoint wpt, boolean local, boolean remote, final ProgressDialog progress) {
+            this.cache = cache;
+            this.handler = handler;
+            this.local = local;
+            this.remote = remote;
+            this.wpt = wpt;
+            this.progress = progress;
+        }
+
+        @Override
+        public void run() {
+
+            if (local) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        progress.setMessage(res.getString(R.string.waypoint_reset_cache_coords));
+                    }
+                });
+                cache.setCoords(wpt.getCoords());
+                cache.setUserModifiedCoords(false);
+                cache.deleteWaypointForce(wpt);
+                cgData.saveChangedCache(cache);
+                handler.sendEmptyMessage(LOCAL);
+            }
+
+            IConnector con = ConnectorFactory.getConnector(cache);
+            if (remote && con.supportsOwnCoordinates()) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        progress.setMessage(res.getString(R.string.waypoint_coordinates_being_reset_on_website));
+                    }
+                });
+
+                final boolean result = con.deleteModifiedCoordinates(cache);
+
+                runOnUiThread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        if (result) {
+                            showToast(getString(R.string.waypoint_coordinates_has_been_reset_on_website));
+                        } else {
+                            showToast(getString(R.string.waypoint_coordinates_upload_error));
+                        }
+                        handler.sendEmptyMessage(ON_WEBSITE);
+                        notifyDataSetChanged();
+                    }
+
+                });
+
+            }
+        }
+    }
+
+    @Override
+    protected String getTitle(Page page) {
+        // show number of waypoints directly in waypoint title
+        if (page == Page.WAYPOINTS) {
+            final int waypointCount = cache.getWaypoints().size();
+            return res.getQuantityString(R.plurals.waypoints, waypointCount, waypointCount);
+        }
+        return res.getString(page.titleStringId);
+    }
+
+    @Override
+    protected Pair<List<? extends Page>, Integer> getOrderedPages() {
+        final ArrayList<Page> pages = new ArrayList<Page>();
+        pages.add(Page.WAYPOINTS);
+        pages.add(Page.DETAILS);
+        final int detailsIndex = pages.size() - 1;
+        pages.add(Page.DESCRIPTION);
+        if (cache.getLogs().isNotEmpty()) {
+            pages.add(Page.LOGS);
+        }
+        if (CollectionUtils.isNotEmpty(cache.getFriendsLogs())) {
+            pages.add(Page.LOGSFRIENDS);
+        }
+        if (CollectionUtils.isNotEmpty(cache.getInventory())) {
+            pages.add(Page.INVENTORY);
+        }
+        if (CollectionUtils.isNotEmpty(cache.getImages())) {
+            pages.add(Page.IMAGES);
+        }
+        return new ImmutablePair<List<? extends Page>, Integer>(pages, detailsIndex);
+    }
+
+    @Override
+    protected AbstractViewPagerActivity.PageViewCreator createViewCreator(Page page) {
+        switch (page) {
+            case DETAILS:
+                return new DetailsViewCreator();
+
+            case DESCRIPTION:
+                return new DescriptionViewCreator();
+
+            case LOGS:
+                return new LogsViewCreator(true);
+
+            case LOGSFRIENDS:
+                return new LogsViewCreator(false);
+
+            case WAYPOINTS:
+                return new WaypointsViewCreator();
+
+            case INVENTORY:
+                return new InventoryViewCreator();
+
+            case IMAGES:
+                return new ImagesViewCreator();
+
+            default:
+                throw new IllegalArgumentException();
+        }
+    }
+
 }

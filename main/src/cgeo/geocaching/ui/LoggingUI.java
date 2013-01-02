@@ -52,7 +52,7 @@ public class LoggingUI extends AbstractUIFactory {
 
         private final int stringId;
 
-        private SpecialLogType(final int stringId) {
+        SpecialLogType(final int stringId) {
             this.stringId = stringId;
         }
 
@@ -124,6 +124,7 @@ public class LoggingUI extends AbstractUIFactory {
 
                         case CLEAR_LOG:
                             cgData.clearLogOffline(cache.getGeocode());
+                            break;
                     }
                 } else {
                     cache.logOffline(activity, logTypeEntry.logType);

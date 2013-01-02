@@ -127,7 +127,7 @@ public class VisitCacheActivity extends AbstractLoggingActivity implements DateD
 
                         @Override
                         public void onClick(View view) {
-                            final Intent trackablesIntent = new Intent(VisitCacheActivity.this, cgeotrackable.class);
+                            final Intent trackablesIntent = new Intent(VisitCacheActivity.this, TrackableActivity.class);
                             trackablesIntent.putExtra(EXTRAS_GEOCODE, tbCode);
                             startActivity(trackablesIntent);
                         }
@@ -717,7 +717,7 @@ public class VisitCacheActivity extends AbstractLoggingActivity implements DateD
         // Do not erase the saved log if the user has removed all the characters
         // without using "Clear". This may be a manipulation mistake, and erasing
         // again will be easy using "Clear" while retyping the text may not be.
-        if (force || (log.length() > 0 && !StringUtils.equals(log, text))) {
+        if (force || (StringUtils.isNotEmpty(log) && !StringUtils.equals(log, text))) {
             cache.logOffline(this, log, date, typeSelected);
         }
         text = log;
@@ -727,7 +727,7 @@ public class VisitCacheActivity extends AbstractLoggingActivity implements DateD
         return ((EditText) findViewById(R.id.log)).getText().toString();
     }
 
-    private class ActivityState {
+    private static class ActivityState {
         private final String[] viewstates;
         private final List<TrackableLog> trackables;
         private final int attempts;
@@ -735,13 +735,13 @@ public class VisitCacheActivity extends AbstractLoggingActivity implements DateD
         private final LogType typeSelected;
         private final double rating;
 
-        public ActivityState() {
-            this.viewstates = VisitCacheActivity.this.viewstates;
-            this.trackables = VisitCacheActivity.this.trackables;
-            this.attempts = VisitCacheActivity.this.attempts;
-            this.possibleLogTypes = VisitCacheActivity.this.possibleLogTypes;
-            this.typeSelected = VisitCacheActivity.this.typeSelected;
-            this.rating = VisitCacheActivity.this.rating;
+        public ActivityState(VisitCacheActivity activity) {
+            this.viewstates = activity.viewstates;
+            this.trackables = activity.trackables;
+            this.attempts = activity.attempts;
+            this.possibleLogTypes = activity.possibleLogTypes;
+            this.typeSelected = activity.typeSelected;
+            this.rating = activity.rating;
         }
 
         public void restore(final VisitCacheActivity activity) {
@@ -756,7 +756,7 @@ public class VisitCacheActivity extends AbstractLoggingActivity implements DateD
 
     @Override
     public Object onRetainNonConfigurationInstance() {
-        return new ActivityState();
+        return new ActivityState(this);
     }
 
     @Override

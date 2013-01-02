@@ -67,8 +67,6 @@ public abstract class GCParser {
         }
 
         final List<String> cids = new ArrayList<String>();
-        String recaptchaChallenge = null;
-        String recaptchaText = null;
         String page = pageContent;
 
         final SearchResult searchResult = new SearchResult();
@@ -77,6 +75,7 @@ public abstract class GCParser {
 
         // recaptcha
         AbstractSearchThread thread = AbstractSearchThread.getCurrentInstance();
+        String recaptchaChallenge = null;
         if (showCaptcha) {
             String recaptchaJsParam = BaseUtils.getMatch(page, GCConstants.PATTERN_SEARCH_RECAPTCHA, false, null);
 
@@ -159,8 +158,6 @@ public abstract class GCParser {
                 continue;
             }
 
-            String inventoryPre = null;
-
             cache.setGeocode(BaseUtils.getMatch(row, GCConstants.PATTERN_SEARCH_GEOCODE, true, 1, cache.getGeocode(), true));
 
             // cache type
@@ -173,9 +170,14 @@ public abstract class GCParser {
 
             // cache inventory
             final Matcher matcherTbs = GCConstants.PATTERN_SEARCH_TRACKABLES.matcher(row);
+            String inventoryPre = null;
             while (matcherTbs.find()) {
                 if (matcherTbs.groupCount() > 0) {
-                    cache.setInventoryItems(Integer.parseInt(matcherTbs.group(1)));
+                    try {
+                        cache.setInventoryItems(Integer.parseInt(matcherTbs.group(1)));
+                    } catch (NumberFormatException e) {
+                        Log.e("Error parsing trackables count", e);
+                    }
                     inventoryPre = matcherTbs.group(2);
                 }
             }
@@ -193,7 +195,7 @@ public abstract class GCParser {
             }
 
             // premium cache
-            cache.setPremiumMembersOnly(row.contains("/images/small_profile.gif"));
+            cache.setPremiumMembersOnly(row.contains("/images/icons/16/premium_only.png"));
 
             // found it
             cache.setFound(row.contains("/images/icons/icon_smile"));
@@ -231,6 +233,7 @@ public abstract class GCParser {
             Log.w("GCParser.parseSearch: Failed to parse cache count");
         }
 
+        String recaptchaText = null;
         if (thread != null && recaptchaChallenge != null) {
             if (thread.getText() == null) {
                 thread.waitForUser();
@@ -239,7 +242,7 @@ public abstract class GCParser {
             recaptchaText = thread.getText();
         }
 
-        if (cids.size() > 0 && (Settings.isPremiumMember() || showCaptcha) && (recaptchaChallenge == null || StringUtils.isNotBlank(recaptchaText))) {
+        if (!cids.isEmpty() && (Settings.isPremiumMember() || showCaptcha) && (recaptchaChallenge == null || StringUtils.isNotBlank(recaptchaText))) {
             Log.i("Trying to get .loc for " + cids.size() + " caches");
 
             try {
@@ -331,7 +334,7 @@ public abstract class GCParser {
 
         final SearchResult searchResult = new SearchResult();
 
-        if (page.contains(GCConstants.STRING_UNPUBLISHED_OTHER) || page.contains(GCConstants.STRING_UNPUBLISHED_OWNER)) {
+        if (page.contains(GCConstants.STRING_UNPUBLISHED_OTHER) || page.contains(GCConstants.STRING_UNPUBLISHED_OWNER) || page.contains(GCConstants.STRING_UNPUBLISHED_FROM_SEARCH)) {
             searchResult.setError(StatusCode.UNPUBLISHED_CACHE);
             return searchResult;
         }
@@ -373,6 +376,8 @@ public abstract class GCParser {
 
         cache.setOwn(StringUtils.equalsIgnoreCase(cache.getOwnerUserId(), Settings.getUsername()));
 
+        cache.setUserModifiedCoords(false);
+
         String tableInside = page;
 
         int pos = tableInside.indexOf(GCConstants.STRING_CACHEDETAILS);
@@ -387,13 +392,21 @@ public abstract class GCParser {
             // cache terrain
             String result = BaseUtils.getMatch(tableInside, GCConstants.PATTERN_TERRAIN, true, null);
             if (result != null) {
-                cache.setTerrain(Float.parseFloat(StringUtils.replaceChars(result, '_', '.')));
+                try {
+                    cache.setTerrain(Float.parseFloat(StringUtils.replaceChars(result, '_', '.')));
+                } catch (NumberFormatException e) {
+                    Log.e("Error parsing terrain value", e);
+                }
             }
 
             // cache difficulty
             result = BaseUtils.getMatch(tableInside, GCConstants.PATTERN_DIFFICULTY, true, null);
             if (result != null) {
-                cache.setDifficulty(Float.parseFloat(StringUtils.replaceChars(result, '_', '.')));
+                try {
+                    cache.setDifficulty(Float.parseFloat(StringUtils.replaceChars(result, '_', '.')));
+                } catch (NumberFormatException e) {
+                    Log.e("Error parsing difficulty value", e);
+                }
             }
 
             // owner
@@ -418,7 +431,11 @@ public abstract class GCParser {
             }
 
             // favourite
-            cache.setFavoritePoints(Integer.parseInt(BaseUtils.getMatch(tableInside, GCConstants.PATTERN_FAVORITECOUNT, true, "0")));
+            try {
+                cache.setFavoritePoints(Integer.parseInt(BaseUtils.getMatch(tableInside, GCConstants.PATTERN_FAVORITECOUNT, true, "0")));
+            } catch (NumberFormatException e) {
+                Log.e("Error parsing favourite count", e);
+            }
 
             // cache size
             cache.setSize(CacheSize.getById(BaseUtils.getMatch(tableInside, GCConstants.PATTERN_SIZE, true, CacheSize.NOT_CHOSEN.id)));
@@ -492,8 +509,8 @@ public abstract class GCParser {
                         String attribute = matcherAttributesInside.group(2).toLowerCase(Locale.US);
 
                         // if the image name can be recognized, use the image name as attribute
-                        String imageName = matcherAttributesInside.group(1).trim();
-                        if (imageName.length() > 0) {
+                        final String imageName = matcherAttributesInside.group(1).trim();
+                        if (StringUtils.isNotEmpty(imageName)) {
                             int start = imageName.lastIndexOf('/');
                             int end = imageName.lastIndexOf('.');
                             if (start >= 0 && end >= 0) {
@@ -525,12 +542,12 @@ public abstract class GCParser {
                 String url = matcherSpoilersInside.group(1).replace("/display", "");
 
                 String title = null;
-                if (matcherSpoilersInside.group(2) != null) {
-                    title = matcherSpoilersInside.group(2);
+                if (matcherSpoilersInside.group(3) != null) {
+                    title = matcherSpoilersInside.group(3);
                 }
                 String description = null;
-                if (matcherSpoilersInside.group(3) != null) {
-                    description = matcherSpoilersInside.group(3);
+                if (matcherSpoilersInside.group(4) != null) {
+                    description = matcherSpoilersInside.group(4);
                 }
                 cache.addSpoiler(new cgImage(url, title, description));
             }
@@ -606,7 +623,7 @@ public abstract class GCParser {
             final String originalCoords = BaseUtils.getMatch(page, GCConstants.PATTERN_LATLON_ORIG, false, null);
 
             if (null != originalCoords) {
-                final cgWaypoint waypoint = new cgWaypoint(cgeoapplication.getInstance().getString(R.string.cache_coordinates_original), WaypointType.WAYPOINT, false);
+                final cgWaypoint waypoint = new cgWaypoint(cgeoapplication.getInstance().getString(R.string.cache_coordinates_original), WaypointType.ORIGINAL, false);
                 waypoint.setCoords(new Geopoint(originalCoords));
                 cache.addOrChangeWaypoint(waypoint, false);
                 cache.setUserModifiedCoords(true);
@@ -614,10 +631,7 @@ public abstract class GCParser {
         } catch (Geopoint.GeopointException e) {
         }
 
-        int wpBegin;
-        int wpEnd;
-
-        wpBegin = page.indexOf("<table class=\"Table\" id=\"ctl00_ContentBody_Waypoints\">");
+        int wpBegin = page.indexOf("<table class=\"Table\" id=\"ctl00_ContentBody_Waypoints\">");
         if (wpBegin != -1) { // parse waypoints
             if (CancellableHandler.isCancelled(handler)) {
                 return null;
@@ -626,7 +640,7 @@ public abstract class GCParser {
 
             String wpList = page.substring(wpBegin);
 
-            wpEnd = wpList.indexOf("</p>");
+            int wpEnd = wpList.indexOf("</p>");
             if (wpEnd > -1 && wpEnd <= wpList.length()) {
                 wpList = wpList.substring(0, wpEnd);
             }
@@ -643,9 +657,8 @@ public abstract class GCParser {
 
                 final String[] wpItems = wpList.split("<tr");
 
-                String[] wp;
                 for (int j = 1; j < wpItems.length; j++) {
-                    wp = wpItems[j].split("<td");
+                    String[] wp = wpItems[j].split("<td");
 
                     // waypoint name
                     // res is null during the unit tests
@@ -736,7 +749,7 @@ public abstract class GCParser {
 
         final SearchResult searchResult = parseSearch(url, page, showCaptcha);
         if (searchResult == null || CollectionUtils.isEmpty(searchResult.getGeocodes())) {
-            Log.e("GCParser.searchByNextPage: No cache parsed");
+            Log.w("GCParser.searchByNextPage: No cache parsed");
             return search;
         }
 
@@ -903,7 +916,7 @@ public abstract class GCParser {
 
         trackable = parseTrackable(page, geocode);
         if (trackable == null) {
-            Log.e("GCParser.searchTrackable: No trackable parsed");
+            Log.w("GCParser.searchTrackable: No trackable parsed");
             return null;
         }
 
@@ -1191,6 +1204,8 @@ public abstract class GCParser {
     /**
      * Adds the cache to the favorites of the user.
      *
+     * This must not be called from the UI thread.
+     *
      * @param cache
      *            the cache to add
      * @return <code>false</code> if an error occurred, <code>true</code> otherwise
@@ -1221,7 +1236,9 @@ public abstract class GCParser {
     }
 
     /**
-     * Removes the cache from the Favorites
+     * Removes the cache from the favorites.
+     *
+     * This must not be called from the UI thread.
      *
      * @param cache
      *            the cache to remove
@@ -1236,8 +1253,6 @@ public abstract class GCParser {
      *
      * @param page
      *            the HTML page to parse, already processed through {@link BaseUtils#replaceWhitespace}
-     * @param app
-     *            if not null, the application to use to save the trackable
      * @return the parsed trackable, or null if none could be parsed
      */
     static cgTrackable parseTrackable(final String page, final String possibleTrackingcode) {
@@ -1384,7 +1399,8 @@ public abstract class GCParser {
                 }
 
                 // Apply the pattern for images in a trackable log entry against each full log (group(0))
-                final Matcher matcherLogImages = GCConstants.PATTERN_TRACKABLE_LOG_IMAGES.matcher(matcherLogs.group(0));
+                final String logEntry = matcherLogs.group(0);
+                final Matcher matcherLogImages = GCConstants.PATTERN_TRACKABLE_LOG_IMAGES.matcher(logEntry);
                 /*
                  * 1. Image URL
                  * 2. Image title
@@ -1546,10 +1562,13 @@ public abstract class GCParser {
             final Matcher typeMatcher = GCConstants.PATTERN_TYPE2.matcher(typesText);
             while (typeMatcher.find()) {
                 if (typeMatcher.groupCount() > 1) {
-                    final int type = Integer.parseInt(typeMatcher.group(2));
-
-                    if (type > 0) {
-                        types.add(LogType.getById(type));
+                    try {
+                        int type = Integer.parseInt(typeMatcher.group(2));
+                        if (type > 0) {
+                            types.add(LogType.getById(type));
+                        }
+                    } catch (NumberFormatException e) {
+                        Log.e("Error parsing log types", e);
                     }
                 }
             }
@@ -1657,6 +1676,50 @@ public abstract class GCParser {
                 cache.setMyVote(rating.getMyVote());
             }
         }
+    }
+
+    public static boolean uploadModifiedCoordinates(cgCache cache, Geopoint wpt) {
+        return editModifiedCoordinates(cache, wpt);
+    }
+
+    public static boolean deleteModifiedCoordinates(cgCache cache) {
+        return editModifiedCoordinates(cache, null);
+    }
+
+    public static boolean editModifiedCoordinates(cgCache cache, Geopoint wpt) {
+        final String page = requestHtmlPage(cache.getGeocode(), null, "n", "0");
+        final String userToken = BaseUtils.getMatch(page, GCConstants.PATTERN_USERTOKEN, "");
+        if (StringUtils.isEmpty(userToken)) {
+            return false;
+        }
+
+        try {
+            JSONObject jo;
+            if (wpt != null) {
+                jo = new JSONObject().put("dto", (new JSONObject().put("ut", userToken)
+                        .put("data", new JSONObject()
+                                .put("lat", wpt.getLatitudeE6() / 1E6)
+                                .put("lng", wpt.getLongitudeE6() / 1E6))));
+            } else {
+                jo = new JSONObject().put("dto", (new JSONObject().put("ut", userToken)));
+            }
+
+            final String uriSuffix = wpt != null ? "SetUserCoordinate" : "ResetUserCoordinate";
+
+            final String uriPrefix = "http://www.geocaching.com/seek/cache_details.aspx/";
+            HttpResponse response = Network.postJsonRequest(uriPrefix + uriSuffix, jo);
+            Log.i("Sending to " + uriPrefix + uriSuffix + " :" + jo.toString());
+
+            if (response != null && response.getStatusLine().getStatusCode() == 200) {
+                Log.i("GCParser.editModifiedCoordinates - edited on GC.com");
+                return true;
+            }
+
+        } catch (JSONException e) {
+            Log.e("Unknown exception with json wrap code", e);
+        }
+        Log.e("GCParser.deleteModifiedCoordinates - cannot delete modified coords");
+        return false;
     }
 
 }

@@ -31,7 +31,7 @@ public class StaticMapsProvider {
     private static final String ROADMAP = "roadmap";
     private static final String WAYPOINT_PREFIX = "wp";
     private static final String MAP_FILENAME_PREFIX = "map_";
-    private static final String MARKERS_URL = "http://cgeo.carnero.cc/_markers/";
+    private static final String MARKERS_URL = "http://status.cgeo.org/assets/markers/";
     /** We assume there is no real usable image with less than 1k */
     private static final int MIN_MAP_IMAGE_BYTES = 1000;
     /** ThreadPool restricting this to 1 Thread. **/
@@ -62,21 +62,21 @@ public class StaticMapsProvider {
         }
         final HttpResponse httpResponse = Network.getRequest(GOOGLE_STATICMAP_URL, params);
 
-        if (httpResponse != null) {
-            if (httpResponse.getStatusLine().getStatusCode() == 200) {
-                final File file = getMapFile(geocode, prefix, true);
-                if (LocalStorage.saveEntityToFile(httpResponse, file)) {
-                    // Delete image if it has no contents
-                    final long fileSize = file.length();
-                    if (fileSize < MIN_MAP_IMAGE_BYTES) {
-                        file.delete();
-                    }
-                }
-            } else {
-                Log.d("StaticMapsProvider.downloadMap: httpResponseCode = " + httpResponse.getStatusLine().getStatusCode());
-            }
-        } else {
+        if (httpResponse == null) {
             Log.e("StaticMapsProvider.downloadMap: httpResponse is null");
+            return;
+        }
+        if (httpResponse.getStatusLine().getStatusCode() != 200) {
+            Log.d("StaticMapsProvider.downloadMap: httpResponseCode = " + httpResponse.getStatusLine().getStatusCode());
+            return;
+        }
+        final File file = getMapFile(geocode, prefix, true);
+        if (LocalStorage.saveEntityToFile(httpResponse, file)) {
+            // Delete image if it has no contents
+            final long fileSize = file.length();
+            if (fileSize < MIN_MAP_IMAGE_BYTES) {
+                file.delete();
+            }
         }
     }
 
@@ -154,12 +154,12 @@ public class StaticMapsProvider {
             return;
         }
         final String latlonMap = cache.getCoords().format(Format.LAT_LON_DECDEGREE_COMMA);
-        final String markerUrl = MARKERS_URL + "my_location_mdpi.png";
         final Display display = ((WindowManager) cgeoapplication.getInstance().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
         DisplayMetrics metrics = new DisplayMetrics();
         display.getMetrics(metrics);
         final int width = metrics.widthPixels;
         final int height = (int) (110 * metrics.density);
+        final String markerUrl = MARKERS_URL + "my_location_mdpi.png";
         downloadMap(cache.getGeocode(), 15, ROADMAP, markerUrl, PREFIX_PREVIEW, "shadow:false|", latlonMap, width, height, null);
     }
 

@@ -41,10 +41,10 @@ public class GCMap {
         final SearchResult result = new SearchResult();
 
         final String geocodeList = StringUtils.join(geocodes.toArray(), "|");
-        final String referer = GCConstants.URL_LIVE_MAP_DETAILS;
 
         try {
             final Parameters params = new Parameters("i", geocodeList, "_", String.valueOf(System.currentTimeMillis()));
+            final String referer = GCConstants.URL_LIVE_MAP_DETAILS;
             final String data = StringUtils.defaultString(Tile.requestMapInfo(referer, params, referer));
 
             // Example JSON information
@@ -328,7 +328,7 @@ public class GCMap {
 
                     String data = Tile.requestMapInfo(GCConstants.URL_MAP_INFO, params, GCConstants.URL_LIVE_MAP);
                     if (StringUtils.isEmpty(data)) {
-                        Log.e("GCBase.searchByViewport: No data from server for tile (" + tile.getX() + "/" + tile.getY() + ")");
+                        Log.w("GCBase.searchByViewport: No data from server for tile (" + tile.getX() + "/" + tile.getY() + ")");
                     } else {
                         final SearchResult search = GCMap.parseMapJSON(data, tile, bitmap, strategy);
                         if (search == null || CollectionUtils.isEmpty(search.getGeocodes())) {

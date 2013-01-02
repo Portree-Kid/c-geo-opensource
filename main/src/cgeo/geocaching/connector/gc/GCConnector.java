@@ -21,18 +21,21 @@ import java.util.regex.Pattern;
 public class GCConnector extends AbstractConnector implements ISearchByGeocode, ISearchByCenter {
 
     private static final String HTTP_COORD_INFO = "http://coord.info/";
-    private static GCConnector instance;
     private static final Pattern gpxZipFilePattern = Pattern.compile("\\d{7,}(_.+)?\\.zip", Pattern.CASE_INSENSITIVE);
 
     private GCConnector() {
         // singleton
     }
 
+    /**
+     * initialization on demand holder pattern
+     */
+    private static class Holder {
+        private static final GCConnector INSTANCE = new GCConnector();
+    }
+
     public static GCConnector getInstance() {
-        if (instance == null) {
-            instance = new GCConnector();
-        }
-        return instance;
+        return Holder.INSTANCE;
     }
 
     @Override
@@ -47,6 +50,11 @@ public class GCConnector extends AbstractConnector implements ISearchByGeocode, 
     public String getCacheUrl(cgCache cache) {
         // it would also be possible to use "http://www.geocaching.com/seek/cache_details.aspx?wp=" + cache.getGeocode();
         return "http://www.geocaching.com//seek/cache_details.aspx?wp=" + cache.getGeocode();
+    }
+
+    @Override
+    public boolean supportsOwnCoordinates() {
+        return true;
     }
 
     @Override
@@ -102,7 +110,7 @@ public class GCConnector extends AbstractConnector implements ISearchByGeocode, 
         final SearchResult searchResult = GCParser.parseCache(page, handler);
 
         if (searchResult == null || CollectionUtils.isEmpty(searchResult.getGeocodes())) {
-            Log.e("GCConnector.searchByGeocode: No cache parsed");
+            Log.w("GCConnector.searchByGeocode: No cache parsed");
             return searchResult;
         }
 
@@ -141,6 +149,15 @@ public class GCConnector extends AbstractConnector implements ISearchByGeocode, 
         return removed;
     }
 
+    /**
+     * Add a cache to the favorites list.
+     *
+     * This must not be called from the UI thread.
+     *
+     * @param cache the cache to add
+     * @return <code>true</code> if the cache was sucessfully added, <code>false</code> otherwise
+     */
+
     public static boolean addToFavorites(cgCache cache) {
         final boolean added = GCParser.addToFavorites(cache);
         if (added) {
@@ -149,12 +166,39 @@ public class GCConnector extends AbstractConnector implements ISearchByGeocode, 
         return added;
     }
 
+    /**
+     * Remove a cache from the favorites list.
+     *
+     * This must not be called from the UI thread.
+     *
+     * @param cache the cache to add
+     * @return <code>true</code> if the cache was sucessfully added, <code>false</code> otherwise
+     */
+
     public static boolean removeFromFavorites(cgCache cache) {
         final boolean removed = GCParser.removeFromFavorites(cache);
         if (removed) {
             cgData.saveChangedCache(cache);
         }
         return removed;
+    }
+
+    @Override
+    public boolean uploadModifiedCoordinates(cgCache cache, Geopoint wpt) {
+        final boolean uploaded = GCParser.uploadModifiedCoordinates(cache, wpt);
+        if (uploaded) {
+            cgData.saveChangedCache(cache);
+        }
+        return uploaded;
+    }
+
+    @Override
+    public boolean deleteModifiedCoordinates(cgCache cache) {
+        final boolean deleted = GCParser.deleteModifiedCoordinates(cache);
+        if (deleted) {
+            cgData.saveChangedCache(cache);
+        }
+        return deleted;
     }
 
     @Override

@@ -45,7 +45,7 @@ public enum CacheType {
     private final int stringId;
     public final int markerId;
 
-    private CacheType(String id, String pattern, String guid, int stringId, int markerId) {
+    CacheType(String id, String pattern, String guid, int stringId, int markerId) {
         this.id = id;
         this.pattern = pattern;
         this.guid = guid;
@@ -88,5 +88,10 @@ public enum CacheType {
 
     public boolean isEvent() {
         return CacheType.EVENT == this || CacheType.MEGA_EVENT == this || CacheType.CITO == this || CacheType.LOSTANDFOUND == this;
+    }
+
+    @Override
+    public String toString() {
+        return getL10n();
     }
 }

@@ -1315,7 +1315,7 @@ public final class Settings {
 
         FileUtils.listDir(result, directory, new ExtensionsBasedFileSelector(new String[] { "xml" }), null);
 
-        return result.toArray(new File[] {});
+        return result.toArray(new File[result.size()]);
     }
 
     private static class ExtensionsBasedFileSelector extends FileSelector {
@@ -1344,8 +1344,9 @@ public final class Settings {
     }
 
     public static String getPreferencesName() {
-        // there is currently no Android API to get the file name of the shared preferences
-        return cgeoapplication.getInstance().getPackageName() + "_preferences";
+        // There is currently no Android API to get the file name of the shared preferences. Let's hardcode
+        // it without needing a cgeoapplication instance.
+        return "cgeo.geocaching_preferences";
     }
 
     public static boolean getPlainLogs() {

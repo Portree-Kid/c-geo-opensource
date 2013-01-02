@@ -1002,14 +1002,10 @@ public class SettingsActivity extends AbstractActivity {
         if (resultCode != RESULT_OK) {
             return;
         }
-        String directory = null;
         // we may come back from either our selfmade chooser or from the Open Intent manager
-        if (data.hasExtra(SimpleDirChooser.EXTRA_CHOSEN_DIR)) {
-            directory = data.getStringExtra(SimpleDirChooser.EXTRA_CHOSEN_DIR);
-        }
-        else {
-            directory = new File(data.getData().getPath()).getAbsolutePath();
-        }
+        final String directory = data.hasExtra(SimpleDirChooser.EXTRA_CHOSEN_DIR) ?
+                data.getStringExtra(SimpleDirChooser.EXTRA_CHOSEN_DIR) :
+                new File(data.getData().getPath()).getAbsolutePath();
         if (StringUtils.isNotBlank(directory)) {
             runnableSetDir.run(directory);
             EditText directoryText = (EditText) findViewById(textField);
@@ -1030,7 +1026,7 @@ public class SettingsActivity extends AbstractActivity {
             startActivityForResult(dirChooser, directoryKind);
         } catch (android.content.ActivityNotFoundException ex) {
             // OI file manager not available
-            dirChooser = new Intent(SettingsActivity.this, SimpleDirChooser.class);
+            dirChooser = new Intent(this, SimpleDirChooser.class);
             dirChooser.putExtra(SimpleDirChooser.START_DIR, startDirectory);
             startActivityForResult(dirChooser, directoryKind);
         }

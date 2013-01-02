@@ -53,6 +53,7 @@
   <string name="wp_pkg">Parking Area</string>
   <string name="wp_trailhead">Trailhead</string>
   <string name="wp_waypoint">Reference Point</string>
+  <string name="wp_original">Original Coordinates</string>
 
   <!-- logs -->
   <string name="log_found">Found it</string>
@@ -77,6 +78,7 @@
   <string name="log_discovered">Discovered</string>
   <string name="log_reviewer">Reviewer Note</string>
   <string name="log_retractlisting">Retract Listing</string>
+  <string name="log_marked_missing">Marked Missing</string>
   <string name="log_tb_nothing">Do Nothing</string>
   <string name="log_tb_visit">Visited</string>
   <string name="log_tb_drop">Dropped Off</string>
@@ -288,6 +290,7 @@
   <string name="caches_drop_stored">Drop stored</string>
   <string name="caches_drop_progress">Removing caches</string>
   <string name="caches_drop_all_and_list">Drop all and remove list</string>
+  <string name="caches_delete_events">Delete past events</string>
   <string name="caches_refresh_selected">Refresh selected</string>
   <string name="caches_refresh_all">Refresh all</string>
   <string name="caches_move_selected">Move selected</string>
@@ -551,6 +554,8 @@
   <string name="cache_menu_visit_offline">Log Visit offline</string>
   <string name="cache_menu_spoilers">Spoiler images</string>
   <string name="cache_menu_around">Caches around</string>
+  <string name="cache_menu_set_as_cache_coords">Set as cache coords</string>
+  <string name="cache_menu_upload_wpt_to_gc_com">Set as cache coords and upload waypoint to Geocaching.com</string>
   <string name="cache_menu_event">Add to calendar</string>
   <string name="cache_menu_details">Details</string>
   <string name="cache_menu_share">Share cache</string>
@@ -660,6 +665,21 @@
   <string name="waypoint_note">Note</string>
   <string name="waypoint_save">Save</string>
   <string name="waypoint_loading">Loading waypoint…</string>
+  <string name="waypoint_set_as_cache_coords">Set as cache coordinates in c:geo</string>
+  <string name="waypoint_reset_cache_coords">Reset cache coordinates</string>
+  <string name="waypoint_reset_cache_coords_on_website">Reset coordinates on website</string>
+  <string name="waypoint_coordinates_has_been_reset_on_website">Cache coordinates have been reset on website.</string>
+  <string name="waypoint_coordinates_being_reset_on_website">Resetting cache coordinates on website…</string>
+  <string name="waypoint_reset_cache_coords_info">Reset options</string>
+  <string name="waypoint_reset">Reset</string>
+  <string name="waypoint_localy_reset_cache_coords">Reset coordinates in c:geo</string>
+  <string name="waypoint_modify_on_website">Set as cache coordinates on website</string>
+  <string name="waypoint_coordinates_couldnt_be_modified_on_website">Website doesn\'t support modifying cache coordinates.</string>
+  <string name="waypoint_coordinates_upload_error">Error occurred while modifying coordinates on website.</string>
+  <string name="waypoint_coordinates_uploading_to_website">Uploading coordinates %s to website.</string>
+  <string name="waypoint_coordinates_reseting_on_website">Resetting to original coordinates on website.</string>
+  <string name="waypoint_coordinates_has_been_modified_on_website">Cache coordinates on website have been modified to: %s.</string>
+  <string name="waypoint_coordinates_has_been_set_as_cache_coordinates">Cache coordinates have been changed in c:geo to: %s.</string>
   <string name="waypoint_done">Done</string>
   <string name="waypoint_duplicate">Duplicate</string>
   <string name="waypoint_copy_of">Copy of</string>

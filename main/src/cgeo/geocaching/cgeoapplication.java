@@ -22,7 +22,7 @@ public class cgeoapplication extends Application {
     public boolean showLoginToast = true; //login toast shown just once.
     private boolean liveMapHintShown = false; // livemap hint has been shown
     final private StatusUpdater statusUpdater = new StatusUpdater();
-    private static cgeoapplication instance = null;
+    private static cgeoapplication instance;
 
     public cgeoapplication() {
         instance = this;
@@ -101,6 +101,9 @@ public class cgeoapplication extends Application {
                     boolean restored = atomic.get();
                     String message = restored ? res.getString(R.string.init_restore_success) : res.getString(R.string.init_restore_failed);
                     ActivityMixin.helpDialog(fromActivity, res.getString(R.string.init_backup_restore), message);
+                    if (fromActivity instanceof cgeo) {
+                        ((cgeo) fromActivity).updateCacheCounter();
+                    }
                 }
             };
 

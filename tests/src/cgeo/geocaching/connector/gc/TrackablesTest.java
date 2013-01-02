@@ -2,7 +2,9 @@ package cgeo.geocaching.connector.gc;
 
 import cgeo.geocaching.LogEntry;
 import cgeo.geocaching.TrackableLog;
+import cgeo.geocaching.cgImage;
 import cgeo.geocaching.cgTrackable;
+import cgeo.geocaching.enumerations.LogType;
 import cgeo.geocaching.test.AbstractResourceInstrumentationTestCase;
 import cgeo.geocaching.test.R;
 import cgeo.geocaching.utils.BaseUtils;
@@ -44,19 +46,33 @@ public class TrackablesTest extends AbstractResourceInstrumentationTestCase {
         assertEquals("TBXATG", trackable.getGeocode());
 
         List<LogEntry> log = trackable.getLogs();
-        // second log entry has several images; just check first two
-        assertEquals("http://img.geocaching.com/track/log/large/f2e24c50-394c-4d74-8fb4-87298d8bff1d.jpg", log.get(4).getLogImages().get(0).getUrl());
-        assertEquals("7b Welcome to Geowoodstock", log.get(4).getLogImages().get(0).getTitle());
-        assertEquals("http://img.geocaching.com/track/log/large/b57c29c3-134e-4202-a2a1-69ce8920b055.jpg", log.get(4).getLogImages().get(1).getUrl());
-        assertEquals("8 Crater Lake Natl Park Oregon", log.get(4).getLogImages().get(1).getTitle());
+        assertNotNull(log);
+        assertEquals(10, log.size());
+        // log entry 4 has several images; just check first two
+
+        final List<cgImage> log4Images = log.get(4).getLogImages();
+        assertNotNull(log4Images);
+        assertEquals(5, log4Images.size());
+        assertEquals("http://img.geocaching.com/track/log/large/f2e24c50-394c-4d74-8fb4-87298d8bff1d.jpg", log4Images.get(0).getUrl());
+        assertEquals("7b Welcome to Geowoodstock", log4Images.get(0).getTitle());
+        assertEquals("http://img.geocaching.com/track/log/large/b57c29c3-134e-4202-a2a1-69ce8920b055.jpg", log4Images.get(1).getUrl());
+        assertEquals("8 Crater Lake Natl Park Oregon", log4Images.get(1).getTitle());
 
         // third log entry has one image
-        assertEquals("http://img.geocaching.com/track/log/large/0096b42d-4d10-45fa-9be2-2d08c0d5cc61.jpg", log.get(5).getLogImages().get(0).getUrl());
-        assertEquals("Traverski&#39;s GC Univ coin on tour", log.get(5).getLogImages().get(0).getTitle());
+        final List<cgImage> log5Images = log.get(5).getLogImages();
+        assertNotNull(log5Images);
+        assertEquals(1, log5Images.size());
+        assertEquals("http://img.geocaching.com/track/log/large/0096b42d-4d10-45fa-9be2-2d08c0d5cc61.jpg", log5Images.get(0).getUrl());
+        assertEquals("Traverski&#39;s GC Univ coin on tour", log5Images.get(0).getTitle());
+
+        for (LogEntry entry : log) {
+            assertFalse(entry.log.startsWith("<div>"));
+        }
+        assertEquals("traveling", log.get(0).log);
     }
 
     public void testParseTrackableWithoutReleaseDate() {
-        cgTrackable trackable = GCParser.parseTrackable(getFileContent(R.raw.tb14wfv), null);
+        cgTrackable trackable = parseTrackable(R.raw.tb14wfv);
         assertNotNull(trackable);
         assertEquals("The Brickster", trackable.getName());
         assertEquals("Adrian C", trackable.getOwner());
@@ -69,7 +85,7 @@ public class TrackablesTest extends AbstractResourceInstrumentationTestCase {
     }
 
     public void testParseRelativeLink() {
-        final cgTrackable trackable = GCParser.parseTrackable(getFileContent(R.raw.tb4cwjx), null);
+        final cgTrackable trackable = parseTrackable(R.raw.tb4cwjx);
         assertNotNull(trackable);
         assertEquals("The Golden Lisa", trackable.getName());
         final String goal = trackable.getGoal();
@@ -78,12 +94,27 @@ public class TrackablesTest extends AbstractResourceInstrumentationTestCase {
         assertTrue(goal.contains("href=\"http://www.geocaching.com/seek/cache_details.aspx?wp=GC3B7PD#\""));
     }
 
+    private cgTrackable parseTrackable(int trackablePage) {
+        String pageContent = getFileContent(trackablePage);
+        return GCParser.parseTrackable(BaseUtils.replaceWhitespace(pageContent), null);
+    }
+
+    public void testParseMarkMissing() {
+        final cgTrackable trackable = parseTrackable(R.raw.tb29ggq);
+        assertNotNull(trackable);
+        final List<LogEntry> logs = trackable.getLogs();
+        assertNotNull(logs);
+        assertFalse(logs.isEmpty());
+        LogEntry marked = logs.get(4);
+        assertEquals(LogType.MARKED_MISSING, marked.type);
+    }
+
     private cgTrackable getTB2R124() {
-        return GCParser.parseTrackable(BaseUtils.replaceWhitespace(getFileContent(R.raw.trackable_tb2r124)), null);
+        return parseTrackable(R.raw.trackable_tb2r124);
     }
 
     private cgTrackable getTBXATG() {
-        return GCParser.parseTrackable(BaseUtils.replaceWhitespace(getFileContent(R.raw.trackable_tbxatg)), null);
+        return parseTrackable(R.raw.trackable_tbxatg);
     }
 
     public void testParseTrackableNotExisting() {

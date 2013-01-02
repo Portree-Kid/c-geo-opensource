@@ -53,7 +53,7 @@ public class ImagesList {
         private final int titleResId;
         private final int loadingResId;
 
-        private ImageType(final int title, final int loading) {
+        ImageType(final int title, final int loading) {
             this.titleResId = title;
             this.loadingResId = loading;
         }
@@ -95,9 +95,8 @@ public class ImagesList {
         progressDialog.setMax(count);
         progressDialog.show();
 
-        LinearLayout rowView;
         for (final cgImage img : images) {
-            rowView = (LinearLayout) inflater.inflate(R.layout.cache_image_item, null);
+            LinearLayout rowView = (LinearLayout) inflater.inflate(R.layout.cache_image_item, null);
 
             if (StringUtils.isNotBlank(img.getTitle())) {
                 ((TextView) rowView.findViewById(R.id.title)).setText(Html.fromHtml(img.getTitle()));

@@ -774,7 +774,7 @@ public abstract class GPXParser extends FileParser {
             Xml.parse(progressStream, Xml.Encoding.UTF_8, root.getContentHandler());
             return cgData.loadCaches(result, EnumSet.of(LoadFlag.LOAD_DB_MINIMAL));
         } catch (SAXException e) {
-            Log.e("Cannot parse .gpx file as GPX " + version + ": could not parse XML - " + e.toString());
+            Log.w("Cannot parse .gpx file as GPX " + version + ": could not parse XML - " + e.toString());
             throw new ParserException("Cannot parse .gpx file as GPX " + version + ": could not parse XML", e);
         }
     }
@@ -806,17 +806,21 @@ public abstract class GPXParser extends FileParser {
     static WaypointType convertWaypointSym2Type(final String sym) {
         if ("parking area".equalsIgnoreCase(sym)) {
             return WaypointType.PARKING;
-        } else if ("stages of a multicache".equalsIgnoreCase(sym)) {
+        }
+        if ("stages of a multicache".equalsIgnoreCase(sym)) {
             return WaypointType.STAGE;
-        } else if ("question to answer".equalsIgnoreCase(sym)) {
+        }
+        if ("question to answer".equalsIgnoreCase(sym)) {
             return WaypointType.PUZZLE;
-        } else if ("trailhead".equalsIgnoreCase(sym)) {
+        }
+        if ("trailhead".equalsIgnoreCase(sym)) {
             return WaypointType.TRAILHEAD;
-        } else if ("final location".equalsIgnoreCase(sym)) {
+        }
+        if ("final location".equalsIgnoreCase(sym)) {
             return WaypointType.FINAL;
         }
         // this is not fully correct, but lets also look for localized waypoint types
-        for (WaypointType waypointType : WaypointType.ALL_TYPES_EXCEPT_OWN) {
+        for (WaypointType waypointType : WaypointType.ALL_TYPES_EXCEPT_OWN_AND_ORIGINAL) {
             final String localized = waypointType.getL10n();
             if (StringUtils.isNotEmpty(localized)) {
                 if (localized.equalsIgnoreCase(sym)) {
