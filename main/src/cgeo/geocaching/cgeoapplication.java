@@ -12,6 +12,18 @@ import android.content.res.Resources;
 import android.os.Handler;
 import android.os.Message;
 
+<<<<<<< HEAD
+=======
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+>>>>>>> refs/remotes/origin/master
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class cgeoapplication extends Application {
@@ -178,6 +190,10 @@ public class cgeoapplication extends Application {
 
     public void setLiveMapHintShown() {
         liveMapHintShown = true;
+    }
+
+    public Collection<? extends cgWaypoint> getWaypointsInViewport(long centerLat, long centerLon, long spanLat, long spanLon) {
+        return storage.loadWaypoints(centerLat, centerLon, spanLat, spanLon);
     }
 
 }

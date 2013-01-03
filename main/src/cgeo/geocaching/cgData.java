@@ -32,6 +32,7 @@ import android.database.sqlite.SQLiteStatement;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.EnumSet;
@@ -1482,12 +1483,98 @@ public class cgData {
 
         init();
 
+<<<<<<< HEAD
         final StringBuilder query = new StringBuilder("SELECT ");
         for (int i = 0; i < CACHE_COLUMNS.length; i++) {
             query.append(i > 0 ? ", " : "").append(dbTableCaches).append('.').append(CACHE_COLUMNS[i]).append(' ');
         }
         if (loadFlags.contains(LoadFlag.LOAD_OFFLINE_LOG)) {
             query.append(',').append(dbTableLogsOffline).append(".log");
+=======
+        Cursor cursor = null;
+
+        try {
+            StringBuilder where = cgData.whereGeocodeIn(geocodes);
+
+            // viewport limitation
+            if (centerLat != null && centerLon != null && spanLat != null && spanLon != null) {
+                where.append(buildCoordinateWhere(centerLat, centerLon, spanLat, spanLon));
+            }
+            cursor = databaseRO.query(
+                    dbTableCaches,
+                    CACHE_COLUMNS,
+                    where.toString(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null);
+
+            if (cursor != null) {
+                if (cursor.getCount() > 0) {
+                    cursor.moveToFirst();
+
+                    do {
+                        //Extracted Method = LOADDBMINIMAL
+                        cgCache cache = cgData.createCacheFromDatabaseContent(cursor);
+
+                        if (loadFlags.contains(LoadFlag.LOAD_ATTRIBUTES)) {
+                            cache.setAttributes(loadAttributes(cache.getGeocode()));
+                        }
+
+                        if (loadFlags.contains(LoadFlag.LOAD_WAYPOINTS)) {
+                            final List<cgWaypoint> waypoints = loadWaypoints(cache.getGeocode());
+                            if (CollectionUtils.isNotEmpty(waypoints)) {
+                                cache.setWaypoints(waypoints, false);
+                            }
+                        }
+
+                        if (loadFlags.contains(LoadFlag.LOAD_SPOILERS)) {
+                            final List<cgImage> spoilers = loadSpoilers(cache.getGeocode());
+                            if (CollectionUtils.isNotEmpty(spoilers)) {
+                                if (cache.getSpoilers() == null) {
+                                    cache.setSpoilers(new ArrayList<cgImage>());
+                                } else {
+                                    cache.getSpoilers().clear();
+                                }
+                                cache.getSpoilers().addAll(spoilers);
+                            }
+                        }
+
+                        if (loadFlags.contains(LoadFlag.LOAD_LOGS)) {
+                            cache.setLogs(loadLogs(cache.getGeocode()));
+                            final Map<LogType, Integer> logCounts = loadLogCounts(cache.getGeocode());
+                            if (MapUtils.isNotEmpty(logCounts)) {
+                                cache.getLogCounts().clear();
+                                cache.getLogCounts().putAll(logCounts);
+                            }
+                        }
+
+                        if (loadFlags.contains(LoadFlag.LOAD_INVENTORY)) {
+                            final List<cgTrackable> inventory = loadInventory(cache.getGeocode());
+                            if (CollectionUtils.isNotEmpty(inventory)) {
+                                if (cache.getInventory() == null) {
+                                    cache.setInventory(new ArrayList<cgTrackable>());
+                                } else {
+                                    cache.getInventory().clear();
+                                }
+                                cache.getInventory().addAll(inventory);
+                            }
+                        }
+
+                        if (loadFlags.contains(LoadFlag.LOAD_OFFLINE_LOG)) {
+                            cache.setLogOffline(hasLogOffline(cache.getGeocode()));
+                        }
+                        cache.addStorageLocation(StorageLocation.DATABASE);
+                        cacheCache.putCacheInCache(cache);
+
+                        caches.add(cache);
+                    } while (cursor.moveToNext());
+                }
+            }
+        } catch (Exception e) {
+            Log.e(Settings.tag, "cgData.getCaches: " + e.toString());
+>>>>>>> refs/remotes/origin/master
         }
 
         query.append(" FROM ").append(dbTableCaches);
@@ -1563,6 +1650,7 @@ public class cgData {
         }
     }
 
+<<<<<<< HEAD
 
     /**
      * Builds a where for a viewport with the size enhanced by 50%.
@@ -1574,6 +1662,53 @@ public class cgData {
 
     private static String buildCoordinateWhere(final String dbTable, final Viewport viewport) {
         return viewport.resize(1.5).sqlWhere(dbTable);
+=======
+        return caches;
+    }
+
+    /**
+     * Builds a where for coordinates
+     *
+     * @param centerLat
+     * @param centerLon
+     * @param spanLat
+     * @param spanLon
+     * @return
+     */
+
+    private String buildCoordinateWhere(final Long centerLat, final Long centerLon, final Long spanLat, final Long spanLon) {
+        StringBuilder where = new StringBuilder();
+        double latMin = (centerLat / 1e6) - ((spanLat / 1e6) / 2) - ((spanLat / 1e6) / 4);
+        double latMax = (centerLat / 1e6) + ((spanLat / 1e6) / 2) + ((spanLat / 1e6) / 4);
+        double lonMin = (centerLon / 1e6) - ((spanLon / 1e6) / 2) - ((spanLon / 1e6) / 4);
+        double lonMax = (centerLon / 1e6) + ((spanLon / 1e6) / 2) + ((spanLon / 1e6) / 4);
+        double llCache;
+
+        if (latMin > latMax) {
+            llCache = latMax;
+            latMax = latMin;
+            latMin = llCache;
+        }
+        if (lonMin > lonMax) {
+            llCache = lonMax;
+            lonMax = lonMin;
+            lonMin = llCache;
+        }
+
+        if (where.length() > 0) {
+            where.append(" and ");
+        }
+        where.append("(latitude >= ");
+        where.append(String.format((Locale) null, "%.6f", latMin));
+        where.append(" and latitude <= ");
+        where.append(String.format((Locale) null, "%.6f", latMax));
+        where.append(" and longitude >= ");
+        where.append(String.format((Locale) null, "%.6f", lonMin));
+        where.append(" and longitude <= ");
+        where.append(String.format((Locale) null, "%.6f", lonMax));
+        where.append(')');
+        return where.toString();
+>>>>>>> refs/remotes/origin/master
     }
 
     /**
@@ -2307,7 +2442,12 @@ public class cgData {
         }
 
         // viewport limitation
+<<<<<<< HEAD
         final StringBuilder selection = new StringBuilder(buildCoordinateWhere(dbTableCaches, viewport));
+=======
+        StringBuilder where = new StringBuilder();
+        where.append(buildCoordinateWhere(centerLat, centerLon, spanLat, spanLon));
+>>>>>>> refs/remotes/origin/master
 
         // cacheType limitation
         String[] selectionArgs = null;
@@ -3097,6 +3237,51 @@ public class cgData {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Loads all Waypoints in the coordinate rectangle.
+     *
+     * @param centerLat
+     * @param centerLon
+     * @param spanLat
+     * @param spanLon
+     * @return
+     */
+
+    public Collection<? extends cgWaypoint> loadWaypoints(long centerLat, long centerLon, long spanLat, long spanLon) {
+        StringBuilder where = new StringBuilder();
+        where.append(buildCoordinateWhere(centerLat, centerLon, spanLat, spanLon));
+        init();
+
+        List<cgWaypoint> waypoints = new ArrayList<cgWaypoint>();
+
+        Cursor cursor = databaseRO.query(
+                dbTableWaypoints,
+                new String[] { "_id", "geocode", "updated", "type", "prefix", "lookup", "name", "latlon", "latitude", "longitude", "note", "own" },
+                where.toString(),
+                null,
+                null,
+                null,
+                "_id",
+                "100");
+
+        if (cursor != null && cursor.getCount() > 0) {
+            cursor.moveToFirst();
+
+            do {
+
+                cgWaypoint waypoint = createWaypointFromDatabaseContent(cursor);
+
+                waypoints.add(waypoint);
+            } while (cursor.moveToNext());
+        }
+
+        if (cursor != null) {
+            cursor.close();
+        }
+
+        return waypoints;
     }
 
 }

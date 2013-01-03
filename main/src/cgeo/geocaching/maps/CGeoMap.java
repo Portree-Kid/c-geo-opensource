@@ -178,7 +178,11 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
     /** Count of caches currently visible */
     private int cachesCnt = 0;
     /** List of caches in the viewport */
+<<<<<<< HEAD
     private LeastRecentlyUsedSet<cgCache> caches = null;
+=======
+    private final LeastRecentlyUsedSet<cgCache> caches = new LeastRecentlyUsedSet<cgCache>(MAX_CACHES);
+>>>>>>> refs/remotes/origin/master
     /** List of waypoints in the viewport */
     private final LeastRecentlyUsedSet<cgWaypoint> waypoints = new LeastRecentlyUsedSet<cgWaypoint>(MAX_CACHES);
     // storing for offline
@@ -1126,10 +1130,18 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                         searchResult.addGeocode(geocodeIntent);
                     }
                 }
+<<<<<<< HEAD
                 // live mode search result
                 if (isLiveEnabled) {
                     SearchResult liveResult = new SearchResult(cgData.loadCachedInViewport(viewport, Settings.getCacheType()));
                     searchResult.addGeocodes(liveResult.getGeocodes());
+=======
+
+                if (search != null) {
+                    downloaded = true;
+                    caches.addAll(search.getCachesFromSearchResult(LoadFlags.LOAD_CACHE_ONLY));
+                    waypoints.addAll(app.getWaypointsInViewport(centerLat, centerLon, spanLat, spanLon));
+>>>>>>> refs/remotes/origin/master
                 }
 
                 downloaded = true;
@@ -1260,17 +1272,28 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                 }
 
                 // display caches
+<<<<<<< HEAD
                 final List<cgCache> cachesToDisplay = caches.getAsList();
+=======
+                final List<cgCache> cachesToDisplay = new ArrayList<cgCache>(caches);
+>>>>>>> refs/remotes/origin/master
                 final List<cgWaypoint> waypointsToDisplay = new ArrayList<cgWaypoint>(waypoints);
                 final List<CachesOverlayItemImpl> itemsToDisplay = new ArrayList<CachesOverlayItemImpl>();
 
                 if (!cachesToDisplay.isEmpty()) {
                     // Only show waypoints for single view or setting
                     // when less than showWaypointsthreshold Caches shown
+<<<<<<< HEAD
                     if (mapMode == MapMode.SINGLE || (cachesCnt < Settings.getWayPointsThreshold())) {
                         for (cgWaypoint waypoint : waypointsToDisplay) {
 
                             if (waypoint == null || waypoint.getCoords() == null) {
+=======
+                    if (cachesToDisplay.size() == 1 || (cachesCnt < Settings.getWayPointsThreshold())) {
+                        for (cgWaypoint waypoint : waypointsToDisplay) {
+
+                            if (waypoint.getCoords() == null) {
+>>>>>>> refs/remotes/origin/master
                                 continue;
                             }
 

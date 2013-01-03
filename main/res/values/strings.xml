@@ -1006,4 +1006,89 @@
       <item quantity="one">yesterday</item>
       <item quantity="other">%d days ago</item>
   </plurals>
+<<<<<<< HEAD
+=======
+      
+  <!-- ====== please, do not translate (and include in translation) things below this line ====== -->
+
+  <!-- contributors -->
+  <string name="contributors">\n
+    · <a href="http://carnero.cc/">carnero</a> as the father of c:geo\n
+    \n
+    · 0xErnie (localization DE)\n
+    · <a href="mailto:bazsy@freemail.hu">Balazs Szabo (Bazsy1983)</a> (loc. HU)\n
+    · Bananeweizen (code, loc. DE)\n
+    · blafoo (code)\n
+    · Bonemaro (tester)\n
+    · BudBundi (localization DE, tester)\n
+    · campbeb (code)\n
+    · Charles (localization FR)\n
+    · Denny (localization DA)\n
+    · Eisbehr (code, open source project leader)\n
+    · F. Coello (localization ES)\n
+    · Filipe C. (code)\n
+    · <a href="http://www.hunterthornsberry.com">Hunter275</a> (tester)\n
+    · <a href="http://iirojappinen.com/">Iiro Jäppinen</a> (graphic)\n
+    · inkantis (localization PL)\n
+    · <a href="http://www.jaytech.cz/">Jan Žatecký</a> (graphic)\n
+    · <a href="http://joachim-wilke.de/">JoWi24</a> (code)\n
+    · <a href="http://github.com/koem">Karsten Priegnitz</a> (code, artwork computation)\n
+    · <a href="http://www.geocaching.com/email/?guid=d11a3e3d-7db0-4d43-87f2-7893238844a6">Lineflyer</a> (tester, localization DE)\n
+    · Ludovic Valente (localization FR)\n
+    · marco-jacob (code, loc. DE)\n
+    · MichielK (code, loc. NL)\n
+    · mucek4 (code, open source project leader)\n
+    · ncorreia (code, localization PT)\n
+    · Pascal (localization NL)\n
+    · Pavol Babinčák (code, loc. SK)\n
+    · Peter (localization HU)\n
+    · <a href="https://github.com/Portree-Kid">Portree Kid</a> (code)\n
+    · Rainer S. (code)\n
+    · Ray (code, loc. JA)\n
+    · <a href="http://seromenho.com/">Ricardo Seromenho</a> (localization PT)\n
+    · RoadRunner- (code, loc. DE)\n
+    · <a href="http://www.blueskysoftware.it/">RomNexus6</a> (localization IT)\n
+    · <a href="http://www.sammyshp.de/">SammysHP</a> (code, localization DE)\n
+    · <a href="http://www.rfc1149.net/sam.html">Samuel Tardieu</a> (code, localization FR)\n
+    · serenity (localization DE)\n
+    · Shan, a.k.a. ShakurNO (localization NO)\n
+    · Shizo87 (tester)\n
+    · stephanme/Geoteufel (code)\n
+    · thiasB (code, loc. DE EN)\n
+    · YraFyra (code, loc. SV)\n
+    · zenobios (code, loc. DE EN)\n
+    \n
+    · <a href="http://code.google.com/p/mapsforge/">Mapsforge</a> (OSM-rendering)\n
+    · <a href="http://thenounproject.com/">The Noun Project</a> (basis for attribute icons)\n
+    · <a href="http://commons.apache.org/">The Apache Commons Project</a>\n
+    · <a href="http://androidicons.com/">Android Icons</a> (<a href="https://creativecommons.org/licenses/by/3.0/">CC-BY 3.0</a>)\n
+    · <a href="http://rrze-icon-set.berlios.de/index.html">RRZE Icon set</a> (<a href="http://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA 3.0</a>)\n
+  </string>
+
+  <!-- changelog -->
+  <string name="changelog">\n
+    <b>Next release</b>\n\n
+    <b>New Features/Functions:</b>\n
+    · Export caches as GPX file\n
+    · Field notes can now be uploaded to the website\n
+    \n
+    <b>Bugfixing:</b>\n
+    · Static maps download for waypoints now off by default\n
+    · Waypoints on map do no longer disappear when moving map\n
+     \n
+    <a href="https://github.com/cgeo/c-geo-opensource/issues?milestone=6&amp;state=closed">Detailed list of all changes</a>\n
+    \n
+    <b>Known Limitations/Bugs:</b>\n
+    · Live map:\n
+      Approximated coords due to limitations on the GC-website\n
+      Be aware: If navigation is started directly from live map it may also use the approximated coords!\n
+      In fast mode the cache type might be wrong in rare cases\n
+      Fast mode only detectes Tradi, Multi, Mystery, Event caches\n
+    · Other:\n
+      Log images with huge size will cause a long loading time\n
+      OSM:Offline does only support map-files with version 0.2.4\n\n\n
+    <b>Old releases</b>\n
+    · Please refer to the release notes on the <a href="http://www.cgeo.org">c:geo-website</a>.\n
+    \n</string>
+>>>>>>> refs/remotes/origin/master
 </resources>
