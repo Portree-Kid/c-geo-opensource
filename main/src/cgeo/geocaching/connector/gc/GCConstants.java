@@ -32,7 +32,7 @@ public final class GCConstants {
     public final static Pattern PATTERN_CACHEID = Pattern.compile("/seek/log\\.aspx\\?ID=(\\d+)");
     public final static Pattern PATTERN_GUID = Pattern.compile(Pattern.quote("&wid=") + "([0-9a-z\\-]+)" + Pattern.quote("&"));
     public final static Pattern PATTERN_SIZE = Pattern.compile("<div id=\"ctl00_ContentBody_size\" class=\"CacheSize[^\"]*\">[^<]*<p[^>]*>[^S]*Size[^:]*:[^<]*<span[^>]*>[^<]*<img src=\"[^\"]*/icons/container/[a-z_]+\\.gif\" alt=\"\\w+: ([^\"]+)\"[^>]*>[^<]*<small>[^<]*</small>[^<]*</span>[^<]*</p>");
-    public final static Pattern PATTERN_LATLON = Pattern.compile("<span id=\"uxLatLon\" style=\"font-weight:bold;\"[^>]*>(.*?)</span>");
+    public final static Pattern PATTERN_LATLON = Pattern.compile("<span id=\"uxLatLon\"[^>]*>(.*?)</span>");
     public final static Pattern PATTERN_LATLON_ORIG = Pattern.compile("\\{\"isUserDefined\":true[^}]+?\"oldLatLngDisplay\":\"([^\"]+)\"\\}");
     public final static Pattern PATTERN_LOCATION = Pattern.compile(Pattern.quote("<span id=\"ctl00_ContentBody_Location\">In ") + "(?:<a href=[^>]*>)?(.*?)<");
     public final static Pattern PATTERN_PERSONALNOTE = Pattern.compile("<p id=\"cache_note\"[^>]*>(.*?)</p>");
@@ -70,7 +70,7 @@ public final class GCConstants {
     /** Use replaceAll("[,.]","") on the resulting string before converting to an int */
     public static final Pattern PATTERN_CACHES_FOUND = Pattern.compile("<strong[^>]*>.*?([\\d,.]+) Caches Found");
     public static final Pattern PATTERN_AVATAR_IMAGE_PROFILE_PAGE = Pattern.compile("<img src=\"(http://img.geocaching.com/user/avatar/[0-9a-f-]+\\.jpg)\"[^>]*\\salt=\"Avatar\"");
-    public static final Pattern PATTERN_LOGIN_NAME_LOGIN_PAGE = Pattern.compile("<h4>Success:</h4> <p>You are logged in as[^<]*<strong><span id=\"ctl00_ContentBody_lbUsername\"[^>]*>([^<]+)[^<]*</span>");
+    public static final Pattern PATTERN_LOGIN_NAME_LOGIN_PAGE = Pattern.compile("ctl00_ContentBody_lbUsername\">.*<strong>(.*)</strong>");
     public static final Pattern PATTERN_CUSTOMDATE = Pattern.compile("<option selected=\"selected\" value=\"([ /Mdy-]+)\">");
 
     /**
