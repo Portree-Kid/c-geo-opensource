@@ -1158,7 +1158,7 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                 countVisibleCaches();
                 if (cachesCnt < Settings.getWayPointsThreshold() || geocodeIntent != null) {
                     waypoints.clear();
-                    if (mapMode == MapMode.LIVE || mapMode == MapMode.COORDS) {
+                    if (isLiveEnabled || mapMode == MapMode.LIVE || mapMode == MapMode.COORDS) {
                         //All visible waypoints
                         CacheType type = Settings.getCacheType();
                         Set<cgWaypoint> waypointsInViewport = app.getWaypointsInViewport(viewport, excludeMine, excludeDisabled, type);
@@ -1166,6 +1166,8 @@ public class CGeoMap extends AbstractMap implements OnMapDragListener, ViewFacto
                     }
                     else
                     {
+                        // we don't want to see any stale
+                        waypoints.clear();
                         //All waypoints from the viewed caches
                         for (cgCache c : caches.getAsList()) {
                             waypoints.addAll(c.getWaypoints());
